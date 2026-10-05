@@ -28,26 +28,59 @@
             <div class="collapse navbar-collapse" id="navbarContent">
                 {% if session.get('user_id') %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    
+                    <!-- Common: Dashboard -->
                     <li class="nav-item">
                         <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">
                             <i class="bi bi-speedometer2 me-1"></i> Dashboard
                         </a>
                     </li>
+
+                    <!-- ================= ROLE: STUDENT ================= -->
+                    {% if session.get('role') == 'student' %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'list_concerns' else '' }}" href="{{ url_for('list_concerns') }}">
-                            <i class="bi bi-card-checklist me-1"></i>
-                            {% if session.get('role') == 'student' %} My Inquiries {% else %} Department Queue {% endif %}
+                            <i class="bi bi-card-checklist me-1"></i> My Inquiries
                         </a>
                     </li>
-                    {% if session.get('role') in ('student', 'admin') %}
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'submit_concern' else '' }}" href="{{ url_for('submit_concern') }}">
-                            <i class="bi bi-plus-circle-fill text-warning me-1"></i> Submit Concern
+                        <a class="nav-link {{ 'active fw-semibold text-warning' if request.endpoint == 'submit_concern' else 'text-warning' }}" href="{{ url_for('submit_concern') }}">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Submit Concern
                         </a>
                     </li>
                     {% endif %}
+
+                    <!-- ================= ROLE: DEPARTMENT STAFF ================= -->
+                    {% if session.get('role') == 'staff' %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'list_concerns' else '' }}" href="{{ url_for('list_concerns') }}">
+                            <i class="bi bi-kanban me-1"></i> Department Action Queue
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- ================= ROLE: ADMINISTRATOR ================= -->
+                    {% if session.get('role') == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'list_concerns' else '' }}" href="{{ url_for('list_concerns') }}">
+                            <i class="bi bi-layers me-1"></i> All Inquiries Tracker
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'list_users' else '' }}" href="{{ url_for('list_users') }}">
+                            <i class="bi bi-people-fill me-1"></i> User Directory
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">
+                            <i class="bi bi-graph-up-arrow me-1"></i> Reports & SLA Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+
                 </ul>
 
+                <!-- User Profile & Sign Out -->
                 <div class="d-flex align-items-center gap-3">
                     <div class="text-white text-end d-none d-md-block">
                         <div class="fw-bold">{{ session.get('full_name') }}</div>

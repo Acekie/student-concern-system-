@@ -19,14 +19,26 @@
         </span>
     </div>
     <div class="mt-2 mt-md-0 d-flex gap-2">
-        {% if role in ('student', 'admin') %}
-        <a href="{{ url_for('submit_concern') }}" class="btn btn-card-navy shadow-sm btn-sm">
-            <i class="bi bi-plus-circle me-1"></i> File New Concern
+        <!-- Role-Specific Action Controls -->
+        {% if role == 'student' %}
+        <a href="{{ url_for('submit_concern') }}" class="btn btn-card-navy shadow-sm btn-sm fw-semibold">
+            <i class="bi bi-plus-circle-fill me-1 text-warning"></i> File New Concern
+        </a>
+        <a href="{{ url_for('list_concerns') }}" class="btn btn-outline-secondary shadow-sm btn-sm">
+            <i class="bi bi-card-checklist me-1"></i> My Inquiries
+        </a>
+        {% elif role == 'staff' %}
+        <a href="{{ url_for('list_concerns') }}" class="btn btn-card-green shadow-sm btn-sm fw-semibold">
+            <i class="bi bi-kanban me-1"></i> Open Department Action Queue
+        </a>
+        {% elif role == 'admin' %}
+        <a href="{{ url_for('list_users') }}" class="btn btn-outline-primary shadow-sm btn-sm fw-semibold">
+            <i class="bi bi-people-fill me-1"></i> User Directory
+        </a>
+        <a href="{{ url_for('reports') }}" class="btn btn-card-navy shadow-sm btn-sm fw-semibold">
+            <i class="bi bi-graph-up-arrow me-1"></i> SLA Analytics & Reports
         </a>
         {% endif %}
-        <a href="{{ url_for('list_concerns') }}" class="btn btn-outline-secondary shadow-sm btn-sm">
-            <i class="bi bi-search me-1"></i> Browse Records
-        </a>
     </div>
 </div>
 
@@ -169,8 +181,9 @@
 </div>
 
 <div class="card border-0 shadow-sm rounded-3 mb-4">
-    <div class="card-header bg-white py-3">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-kanban me-2 text-card-green"></i>Department Action & Resolution Queue</h5>
+        <a href="{{ url_for('list_concerns') }}" class="btn btn-sm btn-link text-decoration-none text-card-green">Open Full Queue</a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -209,6 +222,9 @@
                         </td>
                         <td>
                             <span class="badge status-{{ c['status'].lower().replace(' ', '-') }}">{{ c['status'] }}</span>
+                            {% if c['is_escalated'] %}
+                            <span class="badge bg-danger ms-1">ESCALATED</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% set is_od = check_is_overdue(c['sla_target_date'], c['status']) %}
@@ -221,13 +237,13 @@
                         </td>
                         <td class="text-end pe-3">
                             <a href="{{ url_for('view_concern', concern_id=c['concern_id']) }}" class="btn btn-sm btn-card-navy">
-                                Resolve
+                                Review / Resolve
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">No tickets in department queue.</td>
+                        <td colspan="8" class="text-center py-5 text-muted">No tickets currently in department action queue.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -250,7 +266,7 @@
     <div class="col-sm-6 col-lg-3">
         <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-warning border-4">
             <div class="card-body">
-                <div class="text-muted small fw-semibold text-uppercase">In Progress</div>
+                <div class="text-muted small fw-semibold text-uppercase">In Progress Active</div>
                 <h3 class="fw-bold my-1 text-warning">{{ pending }}</h3>
             </div>
         </div>
@@ -309,7 +325,7 @@
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm rounded-3 h-100">
             <div class="card-header bg-white py-3">
-                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-shield-lock me-2 text-card-navy"></i>Audit Trail Log</h5>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-shield-lock me-2 text-card-navy"></i>Institutional Audit Trail</h5>
             </div>
             <div class="card-body p-3">
                 <div class="timeline small">

@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Registered Users Directory - CARD MRI SCRRTS{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom">
+    <div>
+        <h2 class="h4 fw-bold mb-0 text-card-navy">CARD MRI Institutional User Directory & Accounts</h2>
+        <span class="text-muted small">Centralized repository of all registered students, department staff resolvers, and administrators.</span>
+    </div>
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+        <a href="{{ url_for('register') }}" class="btn btn-card-green shadow-sm btn-sm">
+            <i class="bi bi-person-plus-fill me-1"></i> Register New User
+        </a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-primary border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Total Registered Users</div>
+                <h3 class="fw-bold my-1 text-card-navy">{{ total_users }}</h3>
+                <small class="text-muted">Campus-wide verified accounts</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-success border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Registered Students</div>
+                <h3 class="fw-bold my-1 text-success">{{ total_students }}</h3>
+                <small class="text-muted">Active student profiles</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-warning border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Department Staff</div>
+                <h3 class="fw-bold my-1 text-warning">{{ total_staff }}</h3>
+                <small class="text-muted">Department resolvers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-danger border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">System Administrators</div>
+                <h3 class="fw-bold my-1 text-danger">{{ total_admins }}</h3>
+                <small class="text-muted">Institutional supervisors</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-body p-3 p-md-4">
+        <form method="GET" action="{{ url_for('list_users') }}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="q" class="form-label small fw-bold text-uppercase text-muted">Search User</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="q" name="q" value="{{ search_query }}" placeholder="Search by name, student ID, or email...">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="role" class="form-label small fw-bold text-uppercase text-muted">Role Filter</label>
+                <select class="form-select" id="role" name="role">
+                    <option value="ALL" {% if role_filter == 'ALL' %}selected{% endif %}>All Roles</option>
+                    <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Students Only</option>
+                    <option value="staff" {% if role_filter == 'staff' %}selected{% endif %}>Department Staff</option>
+                    <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Administrators</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-card-navy w-100">
+                    <i class="bi bi-funnel me-1"></i> Filter Directory
+                </button>
+                <a href="{{ url_for('list_users') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Table Card -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Full Name & Role</th>
+                        <th>Student ID / Employee Mapping</th>
+                        <th>Institutional Email</th>
+                        <th>Program / Department</th>
+                        <th>Campus / Branch</th>
+                        <th>Date Registered</th>
+                        <th class="text-center pe-3">Account Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-bold text-dark">{{ u['full_name'] }}</div>
+                            <span class="badge {% if u['role'] == 'student' %}bg-primary{% elif u['role'] == 'staff' %}bg-success{% else %}bg-danger{% endif %} text-uppercase">
+                                {{ u['role'] }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if u['student_id_number'] %}
+                            <span class="badge bg-light text-dark border fw-bold">{{ u['student_id_number'] }}</span>
+                            {% else %}
+                            <span class="text-muted small">CARD MRI Employee</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="mailto:{{ u['email'] }}" class="text-decoration-none text-dark">{{ u['email'] }}</a>
+                        </td>
+                        <td>
+                            {% if u['role'] == 'student' %}
+                            <small class="text-dark fw-semibold">{{ u['course_program'] or 'N/A' }}</small>
+                            {% elif u['role'] == 'staff' %}
+                            <span class="badge bg-light text-dark border">{{ u['department_name'] }} ({{ u['department_code'] }})</span>
+                            {% else %}
+                            <small class="text-muted">Global Campus Administration</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ u['campus_branch'] }}</small>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ u['created_at'] }}</small>
+                        </td>
+                        <td class="text-center pe-3">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                <i class="bi bi-check-circle me-1"></i> Active
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-1 d-block mb-2 text-secondary"></i>
+                            No users found matching your search criteria.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

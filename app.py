@@ -384,11 +384,11 @@ def dashboard():
 # -------------------------------------------------------------
 @app.route('/concerns/new', methods=['GET', 'POST'])
 @login_required
-@role_required('student', 'admin')
+@role_required('student')
 def submit_concern():
     """
-    Core Requirement 3: Concern Submission & Intelligent Routing Engine
-    Maps selected Category directly to appropriate CARD MRI Department queue.
+    Core Requirement: Concern Submission
+    Strictly restricted to Student accounts.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -799,11 +799,58 @@ def export_csv():
             r['department_name'], r['category_name'], r['priority'], r['status'], r['sla_target_date'],
             r['created_at'], r['resolved_at'] or 'N/A', r['resolution_summary'] or 'N/A', r['assigned_staff'] or 'Unassigned'
         ])
-    output.seek(0)
     return Response(
         output.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment;filename=CARD_MRI_Student_Concerns_Masterfile_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"}
+    )
+
+@app.route('/users')
+@login_required
+@role_required('admin')
+def list_users():
+    """Module: User & Account Management - Displays all registered users."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    role_filter = request.args.get('role', 'ALL')
+    search_query = request.args.get('q', '').strip()
+
+    sql = """
+        SELECT u.*, d.department_name, d.department_code
+        FROM users u
+        LEFT JOIN departments d ON u.department_id = d.department_id
+        WHERE 1=1
+    """
+    params = []
+
+    if role_filter != 'ALL':
+        sql += " AND u.role = ?"
+        params.append(role_filter)
+
+    if search_query:
+        sql += " AND (u.full_name LIKE ? OR u.email LIKE ? OR u.student_id_number LIKE ?)"
+        wildcard = f"%{search_query}%"
+        params.extend([wildcard, wildcard, wildcard])
+
+    sql += " ORDER BY u.created_at DESC"
+    users = cursor.execute(sql, params).fetchall()
+
+    total_users = cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    total_students = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
+    total_staff = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'staff'").fetchone()[0]
+    total_admins = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
+
+    conn.close()
+    return render_template(
+        'users.html',
+        users=users,
+        total_users=total_users,
+        total_students=total_students,
+        total_staff=total_staff,
+        total_admins=total_admins,
+        role_filter=role_filter,
+        search_query=search_query
     )
 
 if __name__ == '__main__':

@@ -1,27 +1,28 @@
 {% extends 'base.html' %}
-{% block title %}Concerns Tracker - ResolvEd{% endblock %}
+{% block title %}Concerns Tracker - CARD MRI SCRRTS{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-3 border-bottom">
     <div>
-        <h2 class="h3 fw-bold mb-0 text-dark">
+        <h2 class="h4 fw-bold mb-0 text-card-navy">
             {% if session.get('role') == 'student' %}
                 My Submitted Concerns & Inquiries
+            {% elif session.get('role') == 'staff' %}
+                CARD MRI Department Action Queue
             {% else %}
-                University Concern Routing & Resolution Tracker
+                University-Wide Concern Tracking & Audit Console
             {% endif %}
         </h2>
-        <span class="text-muted">Displaying <strong>{{ concerns|length }}</strong> total matching records</span>
+        <span class="text-muted small">Displaying <strong>{{ concerns|length }}</strong> total matching records</span>
     </div>
     <div class="mt-2 mt-md-0 d-flex gap-2">
-        {% if session.get('role') in ('staff', 'admin') %}
-        <a href="{{ url_for('export_csv') }}" class="btn btn-outline-success shadow-sm">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export to CSV
-        </a>
-        {% endif %}
         {% if session.get('role') == 'student' %}
-        <a href="{{ url_for('submit_concern') }}" class="btn btn-primary shadow-sm">
+        <a href="{{ url_for('submit_concern') }}" class="btn btn-card-navy shadow-sm btn-sm">
             <i class="bi bi-plus-circle me-1"></i> File New Concern
+        </a>
+        {% elif session.get('role') in ('staff', 'admin') %}
+        <a href="{{ url_for('export_csv') }}" class="btn btn-card-green shadow-sm btn-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export to CSV Masterfile
         </a>
         {% endif %}
     </div>
@@ -36,26 +37,27 @@
                 <label for="q" class="form-label small fw-bold text-uppercase text-muted">Keyword Search</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="q" name="q" value="{{ search_query }}" placeholder="Ticket #, subject, student...">
+                    <input type="text" class="form-control" id="q" name="q" value="{{ search_query }}" placeholder="Ticket #, subject, student name...">
                 </div>
             </div>
 
             <!-- Status Filter -->
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3">
                 <label for="status" class="form-label small fw-bold text-uppercase text-muted">Status</label>
                 <select class="form-select" id="status" name="status">
                     <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>All Statuses</option>
-                    <option value="SUBMITTED" {% if status_filter == 'SUBMITTED' %}selected{% endif %}>SUBMITTED</option>
-                    <option value="ROUTED" {% if status_filter == 'ROUTED' %}selected{% endif %}>ROUTED</option>
-                    <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>IN PROGRESS</option>
-                    <option value="RESOLVED" {% if status_filter == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
-                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>REJECTED</option>
-                    <option value="CLOSED" {% if status_filter == 'CLOSED' %}selected{% endif %}>CLOSED</option>
+                    <option value="Submitted" {% if status_filter == 'Submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="Routed" {% if status_filter == 'Routed' %}selected{% endif %}>Routed</option>
+                    <option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Escalated" {% if status_filter == 'Escalated' %}selected{% endif %}>Escalated</option>
+                    <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="Closed" {% if status_filter == 'Closed' %}selected{% endif %}>Closed</option>
+                    <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
                 </select>
             </div>
 
             <!-- Priority Filter -->
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3">
                 <label for="priority" class="form-label small fw-bold text-uppercase text-muted">Priority</label>
                 <select class="form-select" id="priority" name="priority">
                     <option value="ALL" {% if priority_filter == 'ALL' %}selected{% endif %}>All Priorities</option>
@@ -66,50 +68,18 @@
                 </select>
             </div>
 
-            <!-- Department Filter (Admin only) -->
-            {% if session.get('role') == 'admin' %}
-            <div class="col-6 col-md-2">
-                <label for="department" class="form-label small fw-bold text-uppercase text-muted">Department</label>
-                <select class="form-select" id="department" name="department">
-                    <option value="ALL" {% if dept_filter == 'ALL' %}selected{% endif %}>All Depts</option>
-                    {% for d in departments %}
-                    <option value="{{ d['department_id'] }}" {% if dept_filter == d['department_id']|string %}selected{% endif %}>{{ d['department_code'] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-
-            <!-- Sort Option -->
-            <div class="col-6 col-md-2">
-                <label for="sort" class="form-label small fw-bold text-uppercase text-muted">Sort By</label>
-                <select class="form-select" id="sort" name="sort">
-                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
-                    <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
-                    <option value="priority" {% if sort_by == 'priority' %}selected{% endif %}>Priority Urgency</option>
-                    <option value="sla" {% if sort_by == 'sla' %}selected{% endif %}>SLA Target Date</option>
-                </select>
-            </div>
-
-            <!-- Overdue Checkbox & Action Buttons -->
-            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center pt-2 border-top">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" {% if overdue_only %}checked{% endif %}>
-                    <label class="form-check-label fw-bold text-danger" for="overdue">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Filter Only Overdue SLA Tickets
-                    </label>
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('list_concerns') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
-                    <button type="submit" class="btn btn-primary btn-sm px-4">
-                        <i class="bi bi-funnel me-1"></i> Apply Filters
-                    </button>
-                </div>
+            <!-- Actions -->
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-card-navy btn-sm w-100 py-2">
+                    <i class="bi bi-funnel me-1"></i> Filter
+                </button>
+                <a href="{{ url_for('list_concerns') }}" class="btn btn-outline-secondary btn-sm py-2">Reset</a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Table Card -->
+<!-- Concerns Table Card -->
 <div class="card border-0 shadow-sm rounded-3">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -117,21 +87,21 @@
                 <thead class="table-light">
                     <tr>
                         <th class="ps-3">Ticket No.</th>
-                        <th>Student</th>
+                        <th>Student & Program</th>
                         <th>Department</th>
                         <th>Subject & Category</th>
                         <th>Priority</th>
                         <th>Status</th>
                         <th>SLA Due Date</th>
-                        <th>Assigned Staff</th>
+                        <th>Assigned Officer</th>
                         <th class="text-end pe-3">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for c in concerns %}
                     <tr>
-                        <td class="ps-3 fw-bold text-primary">
-                            <a href="{{ url_for('view_concern', concern_id=c['concern_id']) }}" class="text-decoration-none">
+                        <td class="ps-3 fw-bold text-card-navy">
+                            <a href="{{ url_for('view_concern', concern_id=c['concern_id']) }}" class="text-decoration-none text-card-navy">
                                 {{ c['ticket_number'] }}
                             </a>
                         </td>
@@ -152,7 +122,10 @@
                             <span class="badge priority-{{ c['priority'].lower() }}">{{ c['priority'] }}</span>
                         </td>
                         <td>
-                            <span class="badge status-{{ c['status'].lower() }}">{{ c['status'] }}</span>
+                            <span class="badge status-{{ c['status'].lower().replace(' ', '-') }}">{{ c['status'] }}</span>
+                            {% if c['is_escalated'] %}
+                            <span class="badge bg-danger ms-1">ESCALATED</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% set is_od = check_is_overdue(c['sla_target_date'], c['status']) %}
