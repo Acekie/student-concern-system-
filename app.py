@@ -18,7 +18,15 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from database import get_db_connection, init_db, DB_PATH
-from mailer import send_registration_email, send_concern_status_email
+from mailer import (
+    send_registration_email,
+    send_new_ticket_student_email,
+    send_new_ticket_department_email,
+    send_ticket_claimed_email,
+    send_ticket_escalated_email,
+    send_concern_status_email,
+    send_feedback_notification_email
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "card-mri-cmdi-secure-production-key-2026")
@@ -438,7 +446,7 @@ def submit_concern():
 
         # Auto-Routing Logic: Retrieve department mapped to category
         cat_info = cursor.execute("""
-            SELECT c.*, d.department_id, d.department_name, d.department_code 
+            SELECT c.*, d.department_id, d.department_name, d.department_code, d.contact_email 
             FROM concern_categories c
             JOIN departments d ON c.department_id = d.department_id
             WHERE c.category_id = ?
@@ -484,6 +492,38 @@ def submit_concern():
 
         conn.commit()
         conn.close()
+
+        # 1. Dispatch Email to Student
+        try:
+            send_new_ticket_student_email(
+                to_email=session.get('email'),
+                student_name=session.get('full_name'),
+                ticket_number=ticket_number,
+                subject_text=subject,
+                category_name=cat_info['category_name'],
+                department_name=cat_info['department_name'],
+                priority=priority,
+                sla_target_date=sla_target
+            )
+        except Exception as e:
+            print(f"[MAILER ERROR] Student ticket confirmation failed: {e}")
+
+        # 2. Dispatch Alert Email to Handling Department Queue
+        try:
+            if cat_info['contact_email']:
+                send_new_ticket_department_email(
+                    dept_email=cat_info['contact_email'],
+                    department_name=cat_info['department_name'],
+                    ticket_number=ticket_number,
+                    student_name=session.get('full_name'),
+                    student_id=session.get('student_id_number'),
+                    program=session.get('course_program'),
+                    subject_text=subject,
+                    priority=priority,
+                    sla_target_date=sla_target
+                )
+        except Exception as e:
+            print(f"[MAILER ERROR] Department alert failed: {e}")
 
         flash(f"Inquiry logged successfully: Tracking Code [{ticket_number}]. Dispatched to {cat_info['department_name']}.", "success")
         return redirect(url_for('view_concern', concern_id=concern_id))
@@ -581,8 +621,30 @@ def claim_concern(concern_id):
         f"Claimed by {session['full_name']} for investigation and resolution."
     )
 
+    # Retrieve student and department info for email
+    student_info = cursor.execute("""
+        SELECT u.email as student_email, u.full_name as student_name, c.ticket_number, d.department_name
+        FROM concerns c
+        JOIN users u ON c.student_id = u.user_id
+        JOIN departments d ON c.department_id = d.department_id
+        WHERE c.concern_id = ?
+    """, (concern_id,)).fetchone()
+
     conn.commit()
     conn.close()
+
+    if student_info:
+        try:
+            send_ticket_claimed_email(
+                to_email=student_info['student_email'],
+                student_name=student_info['student_name'],
+                ticket_number=student_info['ticket_number'],
+                staff_name=session['full_name'],
+                department_name=student_info['department_name']
+            )
+        except Exception as e:
+            print(f"[MAILER ERROR] Claim notification failed: {e}")
+
     flash("Ticket claimed successfully. Status updated to In Progress.", "success")
     return redirect(url_for('view_concern', concern_id=concern_id))
 
@@ -616,8 +678,43 @@ def escalate_concern(concern_id):
         f"ESCALATION ALERT: {escalation_reason}"
     )
 
+    # Retrieve info for escalation alert emails
+    ticket_info = cursor.execute("""
+        SELECT u.email as student_email, u.full_name as student_name, c.ticket_number, c.subject, d.department_name, d.contact_email as dept_email
+        FROM concerns c
+        JOIN users u ON c.student_id = u.user_id
+        JOIN departments d ON c.department_id = d.department_id
+        WHERE c.concern_id = ?
+    """, (concern_id,)).fetchone()
+
     conn.commit()
     conn.close()
+
+    if ticket_info:
+        try:
+            # 1. Alert Student
+            send_ticket_escalated_email(
+                to_email=ticket_info['student_email'],
+                recipient_name=ticket_info['student_name'],
+                ticket_number=ticket_info['ticket_number'],
+                subject_text=ticket_info['subject'],
+                department_name=ticket_info['department_name'],
+                escalation_reason=escalation_reason,
+                is_admin=False
+            )
+            # 2. Alert Department / Administrator
+            send_ticket_escalated_email(
+                to_email=ticket_info['dept_email'] or "admin@cmdi.edu.ph",
+                recipient_name=f"{ticket_info['department_name']} Supervisor",
+                ticket_number=ticket_info['ticket_number'],
+                subject_text=ticket_info['subject'],
+                department_name=ticket_info['department_name'],
+                escalation_reason=escalation_reason,
+                is_admin=True
+            )
+        except Exception as e:
+            print(f"[MAILER ERROR] Escalation alert failed: {e}")
+
     flash("Concern has been escalated to departmental supervisory queue.", "warning")
     return redirect(url_for('view_concern', concern_id=concern_id))
 
@@ -749,8 +846,35 @@ def submit_feedback(concern_id):
         ON CONFLICT(concern_id) DO UPDATE SET rating = excluded.rating, feedback_comments = excluded.feedback_comments
     """, (concern_id, session['user_id'], rating, comments))
 
+    # Retrieve staff and department info for feedback alert
+    feedback_meta = cursor.execute("""
+        SELECT c.ticket_number, d.department_name, d.contact_email as dept_email,
+               staff.email as staff_email, u.full_name as student_name
+        FROM concerns c
+        JOIN departments d ON c.department_id = d.department_id
+        JOIN users u ON c.student_id = u.user_id
+        LEFT JOIN users staff ON c.assigned_staff_id = staff.user_id
+        WHERE c.concern_id = ?
+    """, (concern_id,)).fetchone()
+
     conn.commit()
     conn.close()
+
+    if feedback_meta:
+        target_resolver_email = feedback_meta['staff_email'] or feedback_meta['dept_email']
+        if target_resolver_email:
+            try:
+                send_feedback_notification_email(
+                    resolver_email=target_resolver_email,
+                    student_name=feedback_meta['student_name'],
+                    ticket_number=feedback_meta['ticket_number'],
+                    rating=rating,
+                    comments=comments,
+                    department_name=feedback_meta['department_name']
+                )
+            except Exception as e:
+                print(f"[MAILER ERROR] Feedback notification failed: {e}")
+
     flash("Feedback received. Thank you for helping CARD MRI improve student service delivery.", "success")
     return redirect(url_for('view_concern', concern_id=concern_id))
 
