@@ -58,7 +58,7 @@
 <div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
     <div class="card-body p-3 p-md-4">
         <form method="GET" action="{{ url_for('list_users') }}" class="row g-3 align-items-end">
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <label for="q" class="form-label small fw-bold text-uppercase text-muted">Search User</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -74,9 +74,17 @@
                     <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Administrators</option>
                 </select>
             </div>
-            <div class="col-6 col-md-4 d-flex gap-2">
+            <div class="col-6 col-md-3">
+                <label for="status" class="form-label small fw-bold text-uppercase text-muted">Account Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>All Statuses</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Accounts Only</option>
+                    <option value="deactivated" {% if status_filter == 'deactivated' %}selected{% endif %}>Deactivated Only</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-card-navy w-100">
-                    <i class="bi bi-funnel me-1"></i> Filter Directory
+                    <i class="bi bi-funnel me-1"></i> Filter
                 </button>
                 <a href="{{ url_for('list_users') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
@@ -97,12 +105,12 @@
                         <th>Program / Department</th>
                         <th>Campus / Branch</th>
                         <th>Date Registered</th>
-                        <th class="text-center pe-3">Account Status</th>
+                        <th class="text-center pe-3" style="min-width: 160px;">Account Status & Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
-                    <tr>
+                    <tr class="{{ 'table-secondary text-muted' if not u['is_active'] else '' }}">
                         <td class="ps-3">
                             <div class="fw-bold text-dark">{{ u['full_name'] }}</div>
                             <span class="badge {% if u['role'] == 'student' %}bg-primary{% elif u['role'] == 'staff' %}bg-success{% else %}bg-danger{% endif %} text-uppercase">
@@ -135,9 +143,29 @@
                             <small class="text-muted">{{ u['created_at'] }}</small>
                         </td>
                         <td class="text-center pe-3">
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                <i class="bi bi-check-circle me-1"></i> Active
-                            </span>
+                            {% if u['is_active'] %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 d-inline-block mb-1">
+                                    <i class="bi bi-check-circle me-1"></i> Active
+                                </span>
+                                {% if u['user_id'] != session.get('user_id') %}
+                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit="return confirm('Are you sure you want to DEACTIVATE the account of {{ u[\'full_name\'] }}? They will not be able to log in.');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2 fw-semibold" style="font-size: 11px;">
+                                        <i class="bi bi-person-x me-1"></i> Deactivate
+                                    </button>
+                                </form>
+                                {% else %}
+                                <div class="small text-muted fst-italic mt-1" style="font-size: 11px;">(Logged-in Admin)</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 d-inline-block mb-1">
+                                    <i class="bi bi-slash-circle me-1"></i> Deactivated
+                                </span>
+                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit="return confirm('Are you sure you want to RE-ACTIVATE the account of {{ u[\'full_name\'] }}?');">
+                                    <button type="submit" class="btn btn-success btn-sm py-0 px-2 fw-semibold" style="font-size: 11px;">
+                                        <i class="bi bi-person-check me-1"></i> Activate
+                                    </button>
+                                </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

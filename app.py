@@ -263,10 +263,14 @@ def login():
             return render_template('login.html')
 
         conn = get_db_connection()
-        user = conn.execute("SELECT * FROM users WHERE email = ? AND is_active = 1", (email,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         conn.close()
 
         if user and check_password_hash(user['password_hash'], password):
+            if not user['is_active']:
+                flash("Access Denied: Your institutional account has been DEACTIVATED by the Administrator. Please contact CARD MRI IT/Admin support.", "danger")
+                return render_template('login.html')
+
             session['user_id'] = user['user_id']
             session['full_name'] = user['full_name']
             session['email'] = user['email']
@@ -859,6 +863,7 @@ def list_users():
     cursor = conn.cursor()
 
     role_filter = request.args.get('role', 'ALL')
+    status_filter = request.args.get('status', 'ALL')
     search_query = request.args.get('q', '').strip()
 
     sql = """
@@ -872,6 +877,11 @@ def list_users():
     if role_filter != 'ALL':
         sql += " AND u.role = ?"
         params.append(role_filter)
+
+    if status_filter == 'active':
+        sql += " AND u.is_active = 1"
+    elif status_filter == 'deactivated':
+        sql += " AND u.is_active = 0"
 
     if search_query:
         sql += " AND (u.full_name LIKE ? OR u.email LIKE ? OR u.student_id_number LIKE ?)"
@@ -894,8 +904,37 @@ def list_users():
         total_staff=total_staff,
         total_admins=total_admins,
         role_filter=role_filter,
+        status_filter=status_filter,
         search_query=search_query
     )
+
+@app.route('/users/<int:user_id>/toggle-status', methods=['POST'])
+@login_required
+@role_required('admin')
+def toggle_user_status(user_id):
+    """Allows Administrator to activate or deactivate a user account."""
+    if user_id == session.get('user_id'):
+        flash("Action denied: You cannot deactivate your own administrative account.", "danger")
+        return redirect(url_for('list_users'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    user = cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+
+    if not user:
+        flash("User record not found.", "danger")
+        conn.close()
+        return redirect(url_for('list_users'))
+
+    new_status = 0 if user['is_active'] else 1
+    cursor.execute("UPDATE users SET is_active = ? WHERE user_id = ?", (new_status, user_id))
+    conn.commit()
+    conn.close()
+
+    status_text = "ACTIVATED" if new_status == 1 else "DEACTIVATED"
+    alert_type = "success" if new_status == 1 else "warning"
+    flash(f"Account for {user['full_name']} ({user['email']}) has been successfully {status_text}.", alert_type)
+    return redirect(url_for('list_users'))
 
 @app.route('/reports')
 @login_required
