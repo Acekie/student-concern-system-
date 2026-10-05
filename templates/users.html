@@ -148,7 +148,7 @@
                                     <i class="bi bi-check-circle me-1"></i> Active
                                 </span>
                                 {% if u['user_id'] != session.get('user_id') %}
-                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit="return confirm('Are you sure you want to DEACTIVATE the account of {{ u[\'full_name\'] }}? They will not be able to log in.');">
+                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit='return confirm("Are you sure you want to DEACTIVATE this user account? They will not be able to log in.");'>
                                     <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2 fw-semibold" style="font-size: 11px;">
                                         <i class="bi bi-person-x me-1"></i> Deactivate
                                     </button>
@@ -160,7 +160,7 @@
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 d-inline-block mb-1">
                                     <i class="bi bi-slash-circle me-1"></i> Deactivated
                                 </span>
-                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit="return confirm('Are you sure you want to RE-ACTIVATE the account of {{ u[\'full_name\'] }}?');">
+                                <form method="POST" action="{{ url_for('toggle_user_status', user_id=u['user_id']) }}" class="d-block mt-1" onsubmit='return confirm("Are you sure you want to RE-ACTIVATE this user account?");'>
                                     <button type="submit" class="btn btn-success btn-sm py-0 px-2 fw-semibold" style="font-size: 11px;">
                                         <i class="bi bi-person-check me-1"></i> Activate
                                     </button>
