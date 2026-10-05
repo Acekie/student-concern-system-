@@ -822,6 +822,7 @@ def departments_view():
     return render_template('departments.html', departments=departments, categories=categories)
 
 if __name__ == '__main__':
-    # Local development server
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print(f"[*] Starting ResolvEd server at http://127.0.0.1:{port}")
+    print(f"[*] Pre-configured accounts ready for evaluation.")
+    app.run(host='0.0.0.0', port=port, debug=False)
