@@ -37,13 +37,13 @@ echo   - Finance:    staff.finance@univ.edu   / Staff@123
 echo   - Student:    demo.user@email.com      / Student@12345
 echo ======================================================================
 echo.
-echo [*] Starting web server on http://127.0.0.1:5000 ...
+echo [*] Starting web server on http://localhost:5000 ...
 echo [!] Keep this command window OPEN while using the system.
 echo [!] To STOP the server, press Ctrl + C in this window.
 echo.
 
-:: Open browser automatically
-start http://127.0.0.1:5000
+:: Open browser automatically using localhost
+start http://localhost:5000
 
 :: Start Flask app directly
 %PY_CMD% app.py
