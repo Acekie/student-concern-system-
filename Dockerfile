@@ -13,6 +13,6 @@ COPY . .
 # Seed initial database
 RUN python database.py
 
-EXPOSE 5000
+EXPOSE 5000 10000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} app:app"]

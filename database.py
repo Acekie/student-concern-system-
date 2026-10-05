@@ -1,6 +1,7 @@
 """
-Database initialization and data layer for the Student Concern Routing and Resolution Tracking System (ResolvEd).
-Matches the Crow's Foot ERD and relational schema specifications.
+CARD-MRI Development Institute, Inc. (CMDI)
+Student Concern Routing and Resolution Tracking System (CARD MRI SCRRTS)
+Core Relational Database Schema and Data Access Layer
 """
 
 import sqlite3
@@ -17,7 +18,7 @@ def get_db_connection():
     return conn
 
 def init_db(force_reseed=False):
-    """Initializes tables and seeds initial realistic production-ready data."""
+    """Initializes tables and seeds CARD MRI institutional departments and admin accounts."""
     if os.path.exists(DB_PATH):
         if not force_reseed:
             return
@@ -39,19 +40,21 @@ def init_db(force_reseed=False):
             DROP TABLE IF EXISTS departments;
         """)
 
-    # Create tables
-    cursor.executescript("""
-    -- 1. Departments Table
+    # 1. CARD MRI Departments Table
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS departments (
         department_id INTEGER PRIMARY KEY AUTOINCREMENT,
         department_code TEXT UNIQUE NOT NULL,
         department_name TEXT NOT NULL,
-        contact_email TEXT NOT NULL,
         head_officer TEXT NOT NULL,
+        contact_email TEXT NOT NULL,
+        campus_branch TEXT NOT NULL DEFAULT 'All Campuses',
         is_active INTEGER NOT NULL DEFAULT 1
     );
+    """)
 
-    -- 2. Users Table
+    # 2. CARD MRI Users Table (Students, Staff, Admins)
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id_number TEXT UNIQUE,
@@ -59,14 +62,18 @@ def init_db(force_reseed=False):
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('student', 'staff', 'admin')),
+        course_program TEXT,
+        campus_branch TEXT NOT NULL DEFAULT 'Bay, Laguna (Main Campus)',
         department_id INTEGER,
         contact_number TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_active INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE SET NULL
     );
+    """)
 
-    -- 3. Concern Categories Table
+    # 3. Concern Categories Table with Auto-Routing Rules
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS concern_categories (
         category_id INTEGER PRIMARY KEY AUTOINCREMENT,
         department_id INTEGER NOT NULL,
@@ -76,8 +83,10 @@ def init_db(force_reseed=False):
         description TEXT,
         FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE CASCADE
     );
+    """)
 
-    -- 4. Concerns Table
+    # 4. CARD MRI Concerns (Tickets) Table with Escalation Support
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS concerns (
         concern_id INTEGER PRIMARY KEY AUTOINCREMENT,
         ticket_number TEXT UNIQUE NOT NULL,
@@ -88,10 +97,13 @@ def init_db(force_reseed=False):
         subject TEXT NOT NULL,
         description TEXT NOT NULL,
         priority TEXT NOT NULL DEFAULT 'MEDIUM' CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')),
-        status TEXT NOT NULL DEFAULT 'SUBMITTED' CHECK(status IN ('SUBMITTED', 'ROUTED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'CLOSED')),
+        status TEXT NOT NULL DEFAULT 'Submitted' CHECK(status IN ('Submitted', 'Routed', 'In Progress', 'Escalated', 'Resolved', 'Closed', 'Rejected')),
         sla_target_date TIMESTAMP NOT NULL,
+        is_escalated INTEGER NOT NULL DEFAULT 0,
+        escalation_reason TEXT,
         resolved_at TIMESTAMP,
         attachment_path TEXT,
+        internal_staff_notes TEXT,
         resolution_summary TEXT,
         rejection_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -101,8 +113,10 @@ def init_db(force_reseed=False):
         FOREIGN KEY (category_id) REFERENCES concern_categories(category_id) ON DELETE RESTRICT,
         FOREIGN KEY (assigned_staff_id) REFERENCES users(user_id) ON DELETE SET NULL
     );
+    """)
 
-    -- 5. Concern Audit Logs Table
+    # 5. Concern Audit Logs Table
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS concern_audit_logs (
         log_id INTEGER PRIMARY KEY AUTOINCREMENT,
         concern_id INTEGER NOT NULL,
@@ -115,8 +129,10 @@ def init_db(force_reseed=False):
         FOREIGN KEY (concern_id) REFERENCES concerns(concern_id) ON DELETE CASCADE,
         FOREIGN KEY (actor_id) REFERENCES users(user_id) ON DELETE RESTRICT
     );
+    """)
 
-    -- 6. Concern Feedback Table
+    # 6. Concern Feedback Table
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS concern_feedback (
         feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
         concern_id INTEGER UNIQUE NOT NULL,
@@ -129,216 +145,155 @@ def init_db(force_reseed=False):
     );
     """)
 
-    # Seed Departments
+    # Seed CARD MRI Internal Departments
     departments_data = [
-        ("REG", "Office of the University Registrar", "registrar@university.edu", "Dr. Erlinda Santos"),
-        ("FIN", "Student Accounting & Finance Office", "finance@university.edu", "Prof. Roberto Mendoza"),
-        ("ACAD", "Academic Affairs & Department Chairs", "academics@university.edu", "Dean Patricia Morales"),
-        ("OSA", "Office of Student Affairs & Services", "studentaffairs@university.edu", "Atty. Fernando Cruz"),
-        ("ICTO", "Information & Communication Technology Office", "ithelpdesk@university.edu", "Engr. Jonathan Reyes")
+        ("REG", "Office of the Registrar", "Dr. Carmelita S. Bayas", "registrar@cmdi.edu.ph", "Bay & Tagum Campuses"),
+        ("FIN", "Student Accounting & Microfinance Finance", "Prof. Edzel A. Ramos", "accounting@cmdi.edu.ph", "Bay & Tagum Campuses"),
+        ("SCHOL", "Scholarships & CARD Community Assistance", "Ms. Maria Luisa P. Gomez", "scholarships@cmdi.edu.ph", "All Campuses"),
+        ("ACAD", "Academic Affairs & Dean's Office", "Dean Rosanna M. Mercado", "academics@cmdi.edu.ph", "Bay, Laguna"),
+        ("ICTO", "ICT & Campus Infrastructure Support", "Engr. Kenneth M. Dalisay", "ict.support@cmdi.edu.ph", "All Campuses")
     ]
     cursor.executemany("""
-        INSERT INTO departments (department_code, department_name, contact_email, head_officer)
-        VALUES (?, ?, ?, ?);
+        INSERT INTO departments (department_code, department_name, head_officer, contact_email, campus_branch)
+        VALUES (?, ?, ?, ?, ?);
     """, departments_data)
 
-    # Seed Concern Categories
+    # Seed CARD MRI Concern Categories with Auto-Routing rules
     categories_data = [
         # REG (id 1)
-        (1, "Transcript of Records (TOR) & Certifications", "HIGH", 48, "Requests, errors, or delays regarding official transcript or certificates of enrollment."),
-        (1, "Enrollment & Subject Adding/Dropping", "URGENT", 24, "Course load adjustment, prerequisite validation, and enrollment confirmation."),
+        (1, "Official Transcript of Records (TOR) & Certifications", "HIGH", 48, "Requests for official records, diploma releases, and enrollment certifications."),
+        (1, "Enrollment, Course Adding/Dropping & Subject Overload", "URGENT", 24, "Course schedule adjustment, prerequisite validation, and study load approvals."),
         # FIN (id 2)
-        (2, "Tuition Assessment & Payment Discrepancy", "HIGH", 48, "Portal payment clearance, online banking posting delays, and ledger balance queries."),
-        (2, "Scholarship Grants & Refunds", "MEDIUM", 72, "Discounts, government scholarship vouchers, and overpayment refund requests."),
-        # ACAD (id 3)
-        (3, "Grade Incomplete / Clarification Consultation", "MEDIUM", 72, "Grade verification, INC completion processing, and syllabus requirements."),
-        (3, "Faculty Advising & Curriculum Concerns", "LOW", 120, "Academic consultation, prerequisite overload appeals, and graduation standing."),
-        # OSA (id 4)
-        (4, "Student Organization & Activity Permits", "MEDIUM", 72, "Club accreditation, campus facility usage requests, and activity permits."),
-        (4, "Guidance & Mental Health Support", "URGENT", 24, "Confidential psychological counseling appointments and student wellness assistance."),
+        (2, "Tuition Assessment & Payment Discrepancy", "HIGH", 48, "Ledger balance clarification, bank transfer verification, and examination permit clearance."),
+        (2, "Microfinance Education Loan & Installment Plan", "MEDIUM", 72, "CARD MBA tuition installment payment scheduling and financial counseling."),
+        # SCHOL (id 3)
+        (3, "CARD MRI Educational Grant / Member Scholarship", "MEDIUM", 72, "CARD Mutually Reinforcing Institutions scholarship grants, subsidies, and clearance."),
+        (3, "CHED TDP / UNIFAST Government Subsidy Clearance", "HIGH", 48, "Validation of government tertiary education subsidies and masterlist claims."),
+        # ACAD (id 4)
+        (4, "Grade Clarification & INC Completion Verification", "MEDIUM", 72, "Incomplete mark completion processing and faculty grading consultation."),
+        (4, "Curriculum Advising & Practicum / OJT Endorsement", "LOW", 120, "Academic tracking, microfinance internship placements, and graduation audit."),
         # ICTO (id 5)
-        (5, "Campus Portal, Wi-Fi & LMS Access", "URGENT", 24, "Student portal password resets, LMS course enrollment errors, campus Wi-Fi credentials.")
+        (5, "Campus LMS, Student Portal & Wi-Fi Network Access", "URGENT", 24, "Student portal credential retrieval, campus fiber Wi-Fi login, and LMS course errors.")
     ]
     cursor.executemany("""
         INSERT INTO concern_categories (department_id, category_name, default_priority, sla_hours, description)
         VALUES (?, ?, ?, ?, ?);
     """, categories_data)
 
-    # Seed Users (Hashed passwords)
-    # Passwords:
-    # Admin: 'Admin@123' / 'Admin@12345'
-    # Staff: 'Staff@123' / 'Staff@12345'
-    # Student: 'Student@123' / 'Student@12345'
+    # Seed Initial CARD MRI Staff & Admin Accounts (Bcrypt Hashed Passwords)
+    # Default passwords strictly follow corporate policy (No 1-click magic links)
     users_data = [
-        # Admins
-        (None, "Engr. Victor Tan", "admin@univ.edu", generate_password_hash("Admin@123"), "admin", None, "+63 917 111 2233"),
-        (None, "System Administrator (Demo)", "demo.admin@email.com", generate_password_hash("Admin@12345"), "admin", None, "+63 917 000 0001"),
+        # Administrators
+        (None, "CARD MRI System Administrator", "admin@cmdi.edu.ph", generate_password_hash("CardMriAdmin@2026"), "admin", None, "Bay, Laguna (Main Campus)", None, "+63 917 800 1122"),
+        
+        # Department Staff (Mapped to CARD MRI Internal Departments)
+        (None, "Regina C. Morales (Registrar Officer)", "staff.registrar@cmdi.edu.ph", generate_password_hash("Registrar@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 1, "+63 918 200 3344"),
+        (None, "Anthony G. Pineda (Accounting Officer)", "staff.accounting@cmdi.edu.ph", generate_password_hash("Accounting@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 2, "+63 918 300 4455"),
+        (None, "Theresa V. Alcantara (Scholarship Officer)", "staff.scholarship@cmdi.edu.ph", generate_password_hash("Scholarship@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 3, "+63 918 400 5566"),
+        (None, "Prof. Bernardo L. Santos (Academic Chair)", "staff.academic@cmdi.edu.ph", generate_password_hash("Academics@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 4, "+63 918 500 6677"),
+        (None, "Engr. Jonathan D. Reyes (ICT Admin)", "staff.ict@cmdi.edu.ph", generate_password_hash("IctSupport@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 5, "+63 918 600 7788"),
 
-        # Department Staff
-        (None, "Maria Elena Ramos", "staff.registrar@univ.edu", generate_password_hash("Staff@123"), "staff", 1, "+63 918 222 3344"),
-        (None, "Carlos Miguel Gomez", "staff.finance@univ.edu", generate_password_hash("Staff@123"), "staff", 2, "+63 918 333 4455"),
-        (None, "Prof. Teresa Diaz", "staff.academic@univ.edu", generate_password_hash("Staff@123"), "staff", 3, "+63 918 444 5566"),
-        (None, "Atty. Fernando Cruz", "staff.osa@univ.edu", generate_password_hash("Staff@123"), "staff", 4, "+63 918 555 6677"),
-        (None, "Department Resolver (Demo)", "demo.staff@email.com", generate_password_hash("Staff@12345"), "staff", 1, "+63 918 000 0002"),
-
-        # Students
-        ("2023-01042", "Maria Clarisse Santos", "student.santos@univ.edu", generate_password_hash("Student@123"), "student", None, "+63 920 123 4567"),
-        ("2022-04891", "Juan Carlo Dela Cruz", "student.delacruz@univ.edu", generate_password_hash("Student@123"), "student", None, "+63 920 765 4321"),
-        ("2024-00129", "Bea Angela Reyes", "student.reyes@univ.edu", generate_password_hash("Student@123"), "student", None, "+63 920 999 8888"),
-        ("2023-99999", "Student User (Demo)", "demo.user@email.com", generate_password_hash("Student@12345"), "student", None, "+63 920 000 0003")
+        # Sample Registered Students
+        ("CMDI-2023-01042", "Clarisse Marie S. Bautista", "cbautista@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS Information Technology (BSIT)", "Bay, Laguna (Main Campus)", None, "+63 920 111 2233"),
+        ("CMDI-2024-00891", "Jerome K. Delos Santos", "jdelossantos@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS Entrepreneurship (BSEntrep)", "Tagum City Campus", None, "+63 920 222 3344")
     ]
     cursor.executemany("""
-        INSERT INTO users (student_id_number, full_name, email, password_hash, role, department_id, contact_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO users (
+            student_id_number, full_name, email, password_hash, role,
+            course_program, campus_branch, department_id, contact_number
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, users_data)
 
-    # Seed Sample Concerns with realistic dates and diverse statuses
+    # Seed Sample Concerns across explicit states (Submitted, Routed, In Progress, Escalated, Resolved, Closed)
     now = datetime.now()
-    
     concerns_data = [
-        # 1. Closed/Resolved with rating: Grade Clarification (ACAD)
+        # 1. Closed: Grade Clarification in Microfinance Accounting (ACAD)
         (
-            "CRN-2026-0001", 8, 3, 5, 5,
-            "Discrepancy in CS301 Final Grade Computation",
-            "My posted midterm exam grade was 92, but my portal reflects 75. Kindly request verification with the professor.",
-            "MEDIUM", "CLOSED",
-            (now - timedelta(days=5) + timedelta(hours=72)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
-            None,
-            "Re-checked grade sheet with Prof. Diaz. Transposition typo corrected from 75 to 95. Updated in University Portal.",
-            None,
-            (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
-        ),
-        # 2. In Progress: Tuition Payment Not Credited (FIN)
-        (
-            "CRN-2026-0002", 8, 2, 3, 4,
-            "Online Bank Transfer for 2nd Sem Tuition Not Reflected",
-            "Transferred PHP 15,500 via GCash to university bank account last Monday. Reference #GC-901827. Assessment remains unpaid.",
-            "HIGH", "IN_PROGRESS",
-            (now + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S"),
-            None,
-            "receipt_gcash_901827.pdf",
-            None,
-            None,
-            (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
-        ),
-        # 3. OVERDUE Ticket: Transcript for Board Exam (REG)
-        (
-            "CRN-2026-0003", 9, 1, 1, 3,
-            "Urgent Transcript of Records (TOR) for PRC Licensure Board Exam",
-            "Deadline for PRC submission is approaching next week. Submitted clearance 3 weeks ago but document is still in queue.",
-            "URGENT", "ROUTED",
-            (now - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S"), # Overdue!
-            None,
-            "clearance_form_signed.pdf",
-            None,
-            None,
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
-        ),
-        # 4. Resolved: LMS & Wi-Fi login credentials (ICTO)
-        (
-            "CRN-2026-0004", 10, 5, 9, 1, # Admin resolved
-            "Cannot connect to Student Wi-Fi 'UnivNet-Secure'",
-            "My university active directory account cannot authenticate to campus Wi-Fi after password reset.",
-            "URGENT", "RESOLVED",
-            (now - timedelta(days=3) + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
-            None,
-            "Active Directory sync re-triggered for student user account. Tested authentication successfully.",
-            None,
-            (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
-        ),
-        # 5. Submitted: Student Org Activity Approval (OSA)
-        (
-            "CRN-2026-0005", 11, 4, 7, None,
-            "Junior CS Society Hackathon 2026 Hall Reservation",
-            "Submitting proposal for 24-hour coding competition on March 25, 2026. Attached endorsement letters from faculty advisor.",
-            "MEDIUM", "SUBMITTED",
-            (now + timedelta(hours=60)).strftime("%Y-%m-%d %H:%M:%S"),
-            None,
-            "hackathon_proposal_2026.pdf",
-            None,
-            None,
-            (now - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S")
-        ),
-        # 6. Rejected: Duplicate Subject Enrollment
-        (
-            "CRN-2026-0006", 9, 1, 2, 3,
-            "Request to waive prerequisite for Advanced Database Systems",
-            "Would like to take CS402 concurrently with prerequisite CS301 without prior passing mark.",
-            "HIGH", "REJECTED",
-            (now - timedelta(days=4) + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S"),
+            "CMDI-CRN-2026-0001", 7, 4, 7, 5,
+            "Clarification of Incomplete Grade mark in ENT302 Microfinance Field Practicum",
+            "Submitted complete field portfolio and host evaluation to department coordinator last January. Portal still reflects INC status.",
+            "MEDIUM", "Closed",
+            (now - timedelta(days=6) + timedelta(hours=72)).strftime("%Y-%m-%d %H:%M:%S"),
+            0, None,
             (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"),
             None,
+            "Internal staff verified receipt of hardcopy portfolio. INC grade updated to 1.75.",
+            "Professor Bernardo Santos cross-checked documentation. Official completion slip forwarded to Registrar.",
             None,
-            "University Academic Policy Section 4.2 strictly prohibits concurrent enrollment of failed/uncompleted prerequisites.",
-            (now - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S"),
+            (now - timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S"),
             (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
         ),
-        # 7. In Progress: Scholarship Billing Deduction
+        # 2. Escalated Ticket: Tuition Payment Delay Exceeding SLA (FIN)
         (
-            "CRN-2026-0007", 11, 2, 4, 4,
-            "CHED TDP Scholarship Discount Not Applied to Remaining Balance",
-            "Received official Masterlist from CHED Region Office. Accounting assessment has not credited the PHP 7,500 grant subsidy.",
-            "MEDIUM", "IN_PROGRESS",
-            (now + timedelta(hours=40)).strftime("%Y-%m-%d %H:%M:%S"),
+            "CMDI-CRN-2026-0002", 7, 2, 3, 3,
+            "CARD Bank Account Payment for Midterm Exam Clearance Not Credited",
+            "Deposited PHP 8,500.00 via CARD Bank Bay Branch counter last Tuesday. Receipt #CB-882910. Portal displays remaining unpaid balance preventing exam permit generation.",
+            "URGENT", "Escalated",
+            (now - timedelta(hours=18)).strftime("%Y-%m-%d %H:%M:%S"), # Overdue target
+            1, "SLA turnaround exceeded 24 hours. Critical exam permit deadline pending for midterms.",
             None,
-            "ched_masterlist_proof.pdf",
+            "deposit_receipt_cb882910.pdf",
+            "Accounting desk flagged bank reconciliation statement. Batch confirmation delayed from local branch.",
             None,
             None,
-            (now - timedelta(hours=32)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(hours=10)).strftime("%Y-%m-%d %H:%M:%S")
+            (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
+            (now - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S")
         ),
-        # 8. Submitted: Enrollment Add/Drop Subject
+        # 3. In Progress: TOR Request for Licensure (REG)
         (
-            "CRN-2026-0008", 8, 1, 2, None,
-            "Overload request for 1 additional 3-unit elective (Graduating status)",
-            "I am in my final graduating term and require 1 additional elective unit (IT405 Mobile Computing).",
-            "URGENT", "SUBMITTED",
-            (now + timedelta(hours=18)).strftime("%Y-%m-%d %H:%M:%S"),
+            "CMDI-CRN-2026-0003", 8, 1, 1, 2,
+            "Urgent Transcript of Records (TOR) for Microfinance Professional Certification",
+            "Applying for external national certification. Clearance already approved by Student Affairs and Accounting.",
+            "HIGH", "In Progress",
+            (now + timedelta(hours=20)).strftime("%Y-%m-%d %H:%M:%S"),
+            0, None,
+            None,
+            "clearance_signed_complete.pdf",
+            "Document print batch scheduled today. Awaiting registrar dry seal.",
+            None,
+            None,
+            (now - timedelta(hours=28)).strftime("%Y-%m-%d %H:%M:%S"),
+            (now - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
+        ),
+        # 4. Submitted: CARD MBA Scholarship Subsidy (SCHOL)
+        (
+            "CMDI-CRN-2026-0004", 8, 3, 5, None,
+            "CARD Mutually Reinforcing Institutions Scholarship Discount 2nd Semester Posting",
+            "Parent is a 10-year CARD Bank member under Laguna Unit. Certificate of Good Standing submitted to scholarship office.",
+            "MEDIUM", "Submitted",
+            (now + timedelta(hours=56)).strftime("%Y-%m-%d %H:%M:%S"),
+            0, None,
+            None,
+            "card_mba_membership_proof.pdf",
             None,
             None,
             None,
-            None,
-            (now - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S"),
-            (now - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+            (now - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S"),
+            (now - timedelta(hours=14)).strftime("%Y-%m-%d %H:%M:%S")
         )
     ]
 
     cursor.executemany("""
         INSERT INTO concerns (
             ticket_number, student_id, department_id, category_id, assigned_staff_id,
-            subject, description, priority, status, sla_target_date, resolved_at,
-            attachment_path, resolution_summary, rejection_reason, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            subject, description, priority, status, sla_target_date, is_escalated,
+            escalation_reason, resolved_at, attachment_path, internal_staff_notes,
+            resolution_summary, rejection_reason, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, concerns_data)
 
     # Seed Audit Logs
     audit_data = [
-        # CRN-2026-0001 trail
-        (1, 8, None, "SUBMITTED", "SUBMITTED", "Concern filed by student via online portal.", (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
-        (1, 1, "SUBMITTED", "ROUTED", "ROUTED", "Auto-routed to Academic Affairs based on category.", (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
-        (1, 5, "ROUTED", "IN_PROGRESS", "CLAIMED", "Ticket assigned to Prof. Teresa Diaz for departmental verification.", (now - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S")),
-        (1, 5, "IN_PROGRESS", "RESOLVED", "RESOLVED", "Resolution note posted and grade update submitted to registrar.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
-        (1, 8, "RESOLVED", "CLOSED", "CLOSED", "Student confirmed resolution and closed ticket.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
+        (1, 7, None, "Submitted", "Submitted", "Concern filed by student via online CMDI portal.", (now - timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S")),
+        (1, 1, "Submitted", "Routed", "Routed", "Auto-routed to Academic Affairs & Dean's Office queue.", (now - timedelta(days=6)).strftime("%Y-%m-%d %H:%M:%S")),
+        (1, 5, "Routed", "In Progress", "Claimed", "Claimed by Prof. Bernardo Santos for grade sheet inspection.", (now - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
+        (1, 5, "In Progress", "Resolved", "Resolved", "INC mark rectified in registrar database. Resolution notes recorded.", (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")),
+        (1, 7, "Resolved", "Closed", "Closed", "Student confirmed grade update in portal and closed ticket.", (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")),
 
-        # CRN-2026-0002 trail
-        (2, 8, None, "SUBMITTED", "SUBMITTED", "Payment discrepancy reported with GCash reference.", (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")),
-        (2, 1, "SUBMITTED", "ROUTED", "ROUTED", "Auto-routed to Student Accounting & Finance.", (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")),
-        (2, 4, "ROUTED", "IN_PROGRESS", "CLAIMED", "Ticket claimed by Carlos Gomez (Finance Officer). Checking bank reconciliation file.", (now - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")),
-
-        # CRN-2026-0003 trail
-        (3, 9, None, "SUBMITTED", "SUBMITTED", "Urgent TOR concern filed for board exam.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
-        (3, 1, "SUBMITTED", "ROUTED", "ROUTED", "Auto-routed to Registrar queue.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
-
-        # CRN-2026-0006 trail (Rejection)
-        (6, 9, None, "SUBMITTED", "SUBMITTED", "Prerequisite waiver appeal filed.", (now - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S")),
-        (6, 3, "SUBMITTED", "REJECTED", "REJECTED", "Registrar verified prerequisite curriculum chart. Appeal rejected in compliance with university policy.", (now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"))
+        (2, 7, None, "Submitted", "Submitted", "Urgent tuition clearance issue filed with bank deposit proof.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
+        (2, 1, "Submitted", "Routed", "Routed", "Auto-routed to Student Accounting & Microfinance Finance queue.", (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
+        (2, 3, "Routed", "In Progress", "Claimed", "Claimed by Anthony Pineda (Accounting).", (now - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")),
+        (2, 1, "In Progress", "Escalated", "Escalated", "Auto-escalated: SLA turnaround exceeded without bank clearance confirmation.", (now - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S"))
     ]
     cursor.executemany("""
         INSERT INTO concern_audit_logs (concern_id, actor_id, previous_status, new_status, action_type, notes, created_at)
@@ -348,12 +303,12 @@ def init_db(force_reseed=False):
     # Seed Feedback
     cursor.execute("""
         INSERT INTO concern_feedback (concern_id, student_id, rating, feedback_comments, submitted_at)
-        VALUES (1, 8, 5, 'Thank you so much! My grade was promptly corrected within 2 days before graduation evaluation.', ?);
-    """, ((now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),))
+        VALUES (1, 7, 5, 'Prompt resolution by Academic Affairs. My grade completion slip was processed accurately.', ?);
+    """, ((now - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"),))
 
     conn.commit()
     conn.close()
-    print("Database initialized and successfully seeded with realistic production records.")
+    print("[*] CARD MRI CMDI Database successfully initialized and seeded.")
 
 if __name__ == "__main__":
     init_db(force_reseed=True)

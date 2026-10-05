@@ -1,87 +1,51 @@
 {% extends 'base.html' %}
-{% block title %}Sign In - ResolvEd Student Concern System{% endblock %}
+{% block title %}Sign In - CARD MRI Student Concern System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center my-4">
-    <div class="col-md-9 col-lg-7">
+    <div class="col-md-8 col-lg-5">
         <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="card-header bg-primary text-white p-4 text-center">
-                <i class="bi bi-shield-check display-4 text-warning mb-2"></i>
-                <h3 class="fw-bold mb-1">ResolvEd Portal</h3>
-                <p class="mb-0 text-white-50">Student Concern Routing and Resolution Tracking System</p>
+            <div class="card-header bg-card-navy text-white p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle p-2 mb-2" style="width: 60px; height: 60px;">
+                    <i class="bi bi-shield-check fs-2 text-card-green"></i>
+                </div>
+                <h4 class="fw-bold mb-1">CARD-MRI Development Institute</h4>
+                <p class="mb-0 text-white-50 small text-uppercase">Student Concern Routing & Resolution Tracking System</p>
             </div>
             <div class="card-body p-4 p-md-5 bg-white">
                 <form method="POST" action="{{ url_for('login') }}">
                     <div class="mb-3">
-                        <label for="email" class="form-label fw-semibold">University Email Address</label>
+                        <label for="email" class="form-label fw-semibold text-dark">Institutional Email Address</label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                            <input type="email" class="form-control" id="email" name="email" placeholder="name@univ.edu or demo.user@email.com" required>
+                            <span class="input-group-text bg-light"><i class="bi bi-envelope-at text-secondary"></i></span>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="e.g., student@cmdi.edu.ph" required autocomplete="username">
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label for="password" class="form-label fw-semibold">Password</label>
+                        <label for="password" class="form-label fw-semibold text-dark">Password</label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-key"></i></span>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Enter secure password" required>
+                            <span class="input-group-text bg-light"><i class="bi bi-key text-secondary"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Enter your secure password" required autocomplete="current-password">
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">
+                    <button type="submit" class="btn btn-card-navy w-100 py-2 fw-bold shadow-sm">
                         <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Portal
                     </button>
                 </form>
 
-                <hr class="my-4">
-
-                <!-- Quick Test Credentials Box (For Examination Defense & Evaluators) -->
-                <div class="bg-light p-3 rounded-3 border">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-lightning-charge-fill text-warning me-2 fs-5"></i>
-                        <h6 class="fw-bold mb-0 text-dark">One-Click Demonstration Accounts</h6>
-                    </div>
-                    <p class="small text-muted mb-3">Click any role below to automatically fill the credentials for rapid testing and grading evaluation:</p>
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3">
-                            <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="fillCreds('demo.admin@email.com', 'Admin@12345')">
-                                <i class="bi bi-person-fill-gear d-block fs-6"></i>
-                                <small class="fw-bold">Admin</small>
-                            </button>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="fillCreds('staff.registrar@univ.edu', 'Staff@123')">
-                                <i class="bi bi-person-badge d-block fs-6"></i>
-                                <small class="fw-bold">Registrar</small>
-                            </button>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="fillCreds('staff.finance@univ.edu', 'Staff@123')">
-                                <i class="bi bi-wallet2 d-block fs-6"></i>
-                                <small class="fw-bold">Finance</small>
-                            </button>
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="fillCreds('demo.user@email.com', 'Student@12345')">
-                                <i class="bi bi-mortarboard d-block fs-6"></i>
-                                <small class="fw-bold">Student</small>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-3 small text-muted text-center border-top pt-2">
-                        <i class="bi bi-shield-lock me-1"></i> Passwords are protected using standard bcrypt hashing (no plain text storage).
-                    </div>
+                <div class="text-center mt-4 pt-3 border-top">
+                    <span class="text-muted small">New student or staff member?</span>
+                    <a href="{{ url_for('register') }}" class="fw-bold text-card-green ms-1 text-decoration-none small">
+                        Register Account
+                    </a>
                 </div>
 
+                <div class="mt-4 p-3 bg-light rounded-3 text-center small text-muted border">
+                    <i class="bi bi-lock-fill text-card-navy me-1"></i>
+                    Protected by CARD MRI Institutional Access Control & Bcrypt Password Hashing.
+                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function fillCreds(email, password) {
-    document.getElementById('email').value = email;
-    document.getElementById('password').value = password;
-}
-</script>
 {% endblock %}

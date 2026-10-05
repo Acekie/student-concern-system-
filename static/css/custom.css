@@ -1,14 +1,59 @@
-/* Custom styles for ResolvEd Student Concern Routing & Resolution Tracking System */
+/* CARD-MRI Development Institute (CMDI) Official Brand Styling */
 
 :root {
-    --primary-color: #1e40af;
-    --primary-hover: #1d4ed8;
+    --card-navy: #002d62;
+    --card-navy-hover: #001f44;
+    --card-green: #006837;
+    --card-green-hover: #004d28;
+    --card-gold: #e5a823;
+    --card-bg: #f4f6f9;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #1e293b;
-    background-color: #f8fafc;
+    background-color: var(--card-bg);
+}
+
+/* Institutional Colors */
+.bg-card-navy {
+    background-color: var(--card-navy) !important;
+    color: #ffffff;
+}
+
+.text-card-navy {
+    color: var(--card-navy) !important;
+}
+
+.bg-card-green {
+    background-color: var(--card-green) !important;
+    color: #ffffff;
+}
+
+.text-card-green {
+    color: var(--card-green) !important;
+}
+
+.btn-card-navy {
+    background-color: var(--card-navy);
+    color: #ffffff;
+    border: none;
+}
+
+.btn-card-navy:hover {
+    background-color: var(--card-navy-hover);
+    color: #ffffff;
+}
+
+.btn-card-green {
+    background-color: var(--card-green);
+    color: #ffffff;
+    border: none;
+}
+
+.btn-card-green:hover {
+    background-color: var(--card-green-hover);
+    color: #ffffff;
 }
 
 /* Status Badges */
@@ -24,10 +69,17 @@ body {
     border: 1px solid #c4b5fd;
 }
 
-.status-in_progress {
+.status-in-progress, .status-in_progress {
     background-color: #fef3c7;
     color: #b45309;
     border: 1px solid #fde68a;
+}
+
+.status-escalated {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #f87171;
+    font-weight: 700;
 }
 
 .status-resolved {
@@ -36,46 +88,37 @@ body {
     border: 1px solid #a7f3d0;
 }
 
-.status-rejected {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-}
-
 .status-closed {
     background-color: #f1f5f9;
     color: #334155;
     border: 1px solid #cbd5e1;
 }
 
+.status-rejected {
+    background-color: #ffe4e6;
+    color: #be123c;
+    border: 1px solid #fecdd3;
+}
+
 /* Priority Badges */
 .priority-urgent {
-    background-color: #ef4444;
+    background-color: #dc2626;
     color: #ffffff;
 }
 
 .priority-high {
-    background-color: #f97316;
+    background-color: #ea580c;
     color: #ffffff;
 }
 
 .priority-medium {
-    background-color: #3b82f6;
+    background-color: #2563eb;
     color: #ffffff;
 }
 
 .priority-low {
-    background-color: #94a3b8;
+    background-color: #64748b;
     color: #ffffff;
-}
-
-/* Cards & Components */
-.card {
-    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.navbar-brand {
-    letter-spacing: -0.5px;
 }
 
 /* Timeline Components */
@@ -85,19 +128,5 @@ body {
 }
 
 .timeline-dot {
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-}
-
-/* Print Styles */
-@media print {
-    nav, footer, .btn, .modal, .no-print {
-        display: none !important;
-    }
-    body {
-        background-color: #ffffff !important;
-    }
-    .card {
-        border: 1px solid #cbd5e1 !important;
-        box-shadow: none !important;
-    }
+    box-shadow: 0 0 0 3px rgba(0, 45, 98, 0.2);
 }

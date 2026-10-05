@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Institutional Registration - CARD MRI Student Concern System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card-header bg-card-navy text-white p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle p-2 mb-2" style="width: 60px; height: 60px;">
+                    <i class="bi bi-shield-lock-fill fs-2 text-card-green"></i>
+                </div>
+                <h4 class="fw-bold mb-1">CARD-MRI Development Institute, Inc.</h4>
+                <p class="mb-0 text-white-50 small text-uppercase letter-spacing-1">Institutional Account Registration Portal</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5 bg-white">
+                <form method="POST" action="{{ url_for('register') }}" id="registrationForm">
+                    
+                    <!-- Account Role Selector -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark">Select Institutional Role <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="account_role" id="role_student" value="student" checked onchange="toggleRoleFields()">
+                                <label class="btn btn-outline-primary w-100 py-2 fw-semibold" for="role_student">
+                                    <i class="bi bi-mortarboard-fill me-1"></i> Student Account
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="account_role" id="role_staff" value="staff" onchange="toggleRoleFields()">
+                                <label class="btn btn-outline-success w-100 py-2 fw-semibold" for="role_staff">
+                                    <i class="bi bi-person-badge-fill me-1"></i> Department Staff
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Personal Fields -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="full_name" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" placeholder="e.g., Juan D. Dela Cruz" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label fw-semibold">Institutional Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="username@cmdi.edu.ph" required>
+                            <div class="form-text small">Use your official CARD MRI / CMDI institutional email.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Minimum 6 characters" required minlength="6">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Re-enter password" required minlength="6">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="campus_branch" class="form-label fw-semibold">CARD MRI Campus / Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="campus_branch" name="campus_branch" required>
+                                <option value="Bay, Laguna (Main Campus)" selected>Bay, Laguna (Main Campus)</option>
+                                <option value="Tagum City, Davao del Norte Campus">Tagum City, Davao del Norte Campus</option>
+                                <option value="Pasig City Extension Office">Pasig City Extension Office</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="contact_number" class="form-label fw-semibold">Contact Mobile Number</label>
+                            <input type="tel" class="form-control" id="contact_number" name="contact_number" placeholder="+63 9XX XXX XXXX">
+                        </div>
+                    </div>
+
+                    <!-- Student Specific Fields -->
+                    <div id="student_fields" class="p-3 bg-light rounded-3 border mb-4">
+                        <h6 class="fw-bold text-card-navy mb-3">
+                            <i class="bi bi-card-heading me-1"></i> Student Academic Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="student_id_number" class="form-label fw-semibold">CARD MRI Student ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="student_id_number" name="student_id_number" placeholder="e.g., CMDI-2024-00123">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="course_program" class="form-label fw-semibold">Academic Program / Course <span class="text-danger">*</span></label>
+                                <select class="form-select" id="course_program" name="course_program">
+                                    <option value="" disabled selected>-- Select Academic Program --</option>
+                                    <option value="BS Information Technology (BSIT)">BS Information Technology (BSIT)</option>
+                                    <option value="BS Entrepreneurship (BSEntrep)">BS Entrepreneurship (BSEntrep)</option>
+                                    <option value="BS Accounting Information System (BSAIS)">BS Accounting Information System (BSAIS)</option>
+                                    <option value="Senior High School - ABM Strand">Senior High School - ABM Strand</option>
+                                    <option value="Senior High School - TVL (ICT) Strand">Senior High School - TVL (ICT) Strand</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Staff Specific Fields -->
+                    <div id="staff_fields" class="p-3 bg-light rounded-3 border mb-4 d-none">
+                        <h6 class="fw-bold text-card-green mb-3">
+                            <i class="bi bi-building-gear me-1"></i> Department Assignment Mapping
+                        </h6>
+                        <div class="mb-3">
+                            <label for="department_id" class="form-label fw-semibold">Designated CARD MRI Department <span class="text-danger">*</span></label>
+                            <select class="form-select" id="department_id" name="department_id">
+                                <option value="" disabled selected>-- Select Department Queue --</option>
+                                {% for d in departments %}
+                                <option value="{{ d['department_id'] }}">{{ d['department_name'] }} ({{ d['department_code'] }}) - {{ d['head_officer'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-card-navy w-100 py-2 fw-bold shadow-sm">
+                        <i class="bi bi-person-plus-fill me-1"></i> Complete Institutional Registration
+                    </button>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <span class="text-muted small">Already have a registered account?</span>
+                        <a href="{{ url_for('login') }}" class="fw-bold text-card-navy ms-1 text-decoration-none small">Sign In here</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleRoleFields() {
+    const isStudent = document.getElementById('role_student').checked;
+    const studentFields = document.getElementById('student_fields');
+    const staffFields = document.getElementById('staff_fields');
+
+    const studentId = document.getElementById('student_id_number');
+    const course = document.getElementById('course_program');
+    const dept = document.getElementById('department_id');
+
+    if (isStudent) {
+        studentFields.classList.remove('d-none');
+        staffFields.classList.add('d-none');
+        studentId.required = true;
+        course.required = true;
+        dept.required = false;
+    } else {
+        studentFields.classList.add('d-none');
+        staffFields.classList.remove('d-none');
+        studentId.required = false;
+        course.required = false;
+        dept.required = true;
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleRoleFields);
+</script>
+{% endblock %}

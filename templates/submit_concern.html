@@ -1,68 +1,69 @@
 {% extends 'base.html' %}
-{% block title %}Submit Concern - ResolvEd{% endblock %}
+{% block title %}Submit Concern - CARD MRI Student Portal{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-            <div class="card-header bg-primary text-white p-4">
+            <div class="card-header bg-card-navy text-white p-4">
                 <div class="d-flex align-items-center">
-                    <div class="bg-white text-primary p-3 rounded-circle me-3">
-                        <i class="bi bi-file-earmark-plus fs-3"></i>
+                    <div class="bg-white text-card-navy p-3 rounded-circle me-3">
+                        <i class="bi bi-file-earmark-plus-fill fs-3 text-card-green"></i>
                     </div>
                     <div>
-                        <h4 class="fw-bold mb-1">Student Concern Submission Form</h4>
-                        <p class="mb-0 text-white-50">Submit your academic, financial, registrar, or facility inquiry for automated departmental routing and resolution.</p>
+                        <h4 class="fw-bold mb-1">CARD MRI Student Inquiry & Concern Submission</h4>
+                        <p class="mb-0 text-white-50">Submit your academic, accounting, scholarship, or facility concern for automated routing to the designated CARD MRI department.</p>
                     </div>
                 </div>
             </div>
 
             <div class="card-body p-4 p-md-5">
-                <form method="POST" action="{{ url_for('submit_concern') }}" enctype="multipart/form-data" id="concernForm">
+                <form method="POST" action="{{ url_for('submit_concern') }}" enctype="multipart/form-data">
 
                     <!-- Student Identification Summary -->
                     <div class="alert alert-light border d-flex align-items-center mb-4">
-                        <i class="bi bi-person-circle fs-3 text-primary me-3"></i>
+                        <i class="bi bi-person-badge fs-2 text-card-navy me-3"></i>
                         <div>
-                            <strong>Filing Student:</strong> {{ session.get('full_name') }}
-                            {% if session.get('student_id_number') %} | <strong>Student ID:</strong> {{ session.get('student_id_number') }}{% endif %}
-                            | <strong>Email:</strong> {{ session.get('email') }}
+                            <strong>Student:</strong> {{ session.get('full_name') }}
+                            {% if session.get('student_id_number') %} | <strong>ID:</strong> {{ session.get('student_id_number') }}{% endif %}
+                            {% if session.get('course_program') %} | <strong>Program:</strong> {{ session.get('course_program') }}{% endif %}
+                            | <strong>Campus:</strong> {{ session.get('campus_branch', 'Bay, Laguna') }}
                         </div>
                     </div>
 
                     <div class="row g-4 mb-4">
                         <!-- Category Selection (Auto-Routes Department) -->
                         <div class="col-md-7">
-                            <label for="category_id" class="form-label fw-bold">
-                                Concern Category <span class="text-danger">*</span>
+                            <label for="category_id" class="form-label fw-bold text-dark">
+                                Inquiry Category <span class="text-danger">*</span>
                             </label>
                             <select class="form-select form-select-lg" id="category_id" name="category_id" required onchange="updateRoutingPreview()">
                                 <option value="" disabled selected>-- Select Concern Category --</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat['category_id'] }}"
-                                        data-dept-id="{{ cat['department_id'] }}"
+                                        data-dept-name="{{ cat['department_name'] }}"
+                                        data-dept-code="{{ cat['department_code'] }}"
                                         data-priority="{{ cat['default_priority'] }}"
                                         data-sla="{{ cat['sla_hours'] }}"
                                         data-desc="{{ cat['description'] }}">
-                                    {{ cat['category_name'] }}
+                                    [{{ cat['department_code'] }}] {{ cat['category_name'] }}
                                 </option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Selecting a category automatically identifies the receiving department and SLA timeline.</div>
+                            <div class="form-text">Selecting a category automatically dispatches the inquiry to the appropriate CARD MRI department queue.</div>
                         </div>
 
                         <!-- Priority Level -->
                         <div class="col-md-5">
-                            <label for="priority" class="form-label fw-bold">
+                            <label for="priority" class="form-label fw-bold text-dark">
                                 Priority Level <span class="text-danger">*</span>
                             </label>
                             <select class="form-select form-select-lg" id="priority" name="priority" required onchange="updateSlaEstimation()">
-                                <option value="LOW">Low (Routine Inquiries)</option>
+                                <option value="LOW">Low (Routine Inquiry)</option>
                                 <option value="MEDIUM" selected>Medium (Standard Processing)</option>
-                                <option value="HIGH">High (Urgent Administrative Need)</option>
-                                <option value="URGENT">Urgent (Critical / Time-sensitive)</option>
+                                <option value="HIGH">High (Urgent Academic/Finance Need)</option>
+                                <option value="URGENT">Urgent (Time-Sensitive Exam/Clearance)</option>
                             </select>
-                            <div class="form-text">Higher priorities expedite the SLA target deadline.</div>
                         </div>
                     </div>
 
@@ -72,11 +73,11 @@
                             <div class="row align-items-center">
                                 <div class="col-md-6 border-end-md">
                                     <small class="text-muted text-uppercase fw-semibold d-block">Automated Destination Department</small>
-                                    <span class="fs-6 fw-bold text-primary" id="previewDept">Please select a category above</span>
+                                    <span class="fs-6 fw-bold text-card-navy" id="previewDept">Please select a category above</span>
                                 </div>
                                 <div class="col-md-6 mt-2 mt-md-0">
                                     <small class="text-muted text-uppercase fw-semibold d-block">SLA Target Resolution Timeframe</small>
-                                    <span class="fs-6 fw-bold text-success" id="previewSla">~72 Hours (Standard)</span>
+                                    <span class="fs-6 fw-bold text-card-green" id="previewSla">~72 Hours (Standard)</span>
                                 </div>
                             </div>
                             <div class="mt-2 text-muted small" id="previewDesc"></div>
@@ -85,46 +86,37 @@
 
                     <!-- Subject Field -->
                     <div class="mb-4">
-                        <label for="subject" class="form-label fw-bold">
-                            Subject / Summary Title <span class="text-danger">*</span>
+                        <label for="subject" class="form-label fw-bold text-dark">
+                            Subject / Title <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control form-control-lg" id="subject" name="subject"
-                               placeholder="e.g., Grade discrepancy in CS301 or Tuition payment not credited" required maxlength="150">
+                               placeholder="e.g., CARD Bank tuition deposit clearance discrepancy or Grade clarification" required maxlength="150">
                     </div>
 
                     <!-- Detailed Description Field -->
                     <div class="mb-4">
-                        <label for="description" class="form-label fw-bold">
-                            Detailed Explanation & Background <span class="text-danger">*</span>
+                        <label for="description" class="form-label fw-bold text-dark">
+                            Detailed Description <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control" id="description" name="description" rows="5"
-                                  placeholder="Provide complete facts, relevant course codes, transaction reference numbers, or faculty names involved..." required></textarea>
+                                  placeholder="Provide complete facts, relevant course subjects, transaction reference numbers, or faculty involved..." required></textarea>
                     </div>
 
-                    <!-- File Attachment Upload -->
+                    <!-- Supporting Attachment -->
                     <div class="mb-4">
-                        <label for="attachment" class="form-label fw-bold">
+                        <label for="attachment" class="form-label fw-bold text-dark">
                             Supporting Attachment / Proof <small class="text-muted fw-normal">(Optional)</small>
                         </label>
                         <input class="form-control" type="file" id="attachment" name="attachment" accept=".png,.jpg,.jpeg,.pdf,.docx,.txt,.zip">
                         <div class="form-text">
-                            Allowed formats: PDF, DOCX, PNG, JPG, ZIP (Max: 16 MB). e.g., Deposit slip, grade screenshot, clearance form.
+                            Allowed formats: PDF, DOCX, PNG, JPG, ZIP (Max 16 MB). e.g., Deposit slip, grade screenshot, clearance form.
                         </div>
                     </div>
 
-                    <!-- Business Rule Notice -->
-                    <div class="alert alert-info border small mb-4">
-                        <i class="bi bi-info-circle-fill me-2"></i>
-                        <strong>Business Rule 1 & 2 Applied:</strong> Upon submission, a sequential tracking ticket number (<code>CRN-YYYY-XXXX</code>) will be generated. The concern will be automatically dispatched to the department resolver queue with an immutable audit entry.
-                    </div>
-
-                    <!-- Buttons -->
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-4">
-                            <i class="bi bi-arrow-left me-1"></i> Cancel
-                        </a>
-                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">
-                            <i class="bi bi-send-check me-2"></i> Submit & Route Concern
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-card-navy px-5 py-2 fw-bold shadow-sm">
+                            <i class="bi bi-send-check me-2"></i> Submit & Route to Department
                         </button>
                     </div>
 
@@ -137,31 +129,24 @@
 
 {% block scripts %}
 <script>
-const deptMap = {
-    {% for d in departments %}
-    "{{ d['department_id'] }}": "{{ d['department_name'] }} ({{ d['department_code'] }})",
-    {% endfor %}
-};
-
 function updateRoutingPreview() {
     const catSelect = document.getElementById('category_id');
     const selectedOpt = catSelect.options[catSelect.selectedIndex];
 
     if (!selectedOpt || !selectedOpt.value) return;
 
-    const deptId = selectedOpt.getAttribute('data-dept-id');
+    const deptName = selectedOpt.getAttribute('data-dept-name');
+    const deptCode = selectedOpt.getAttribute('data-dept-code');
     const basePriority = selectedOpt.getAttribute('data-priority');
-    const baseSla = selectedOpt.getAttribute('data-sla') || '72';
     const desc = selectedOpt.getAttribute('data-desc') || '';
 
-    // Auto set priority if not manually customized yet
     const prioritySelect = document.getElementById('priority');
     if (basePriority) {
         prioritySelect.value = basePriority;
     }
 
-    document.getElementById('previewDept').innerText = deptMap[deptId] || 'Office Queue';
-    document.getElementById('previewDesc').innerText = desc ? 'Category Scope: ' + desc : '';
+    document.getElementById('previewDept').innerText = `${deptName} (${deptCode})`;
+    document.getElementById('previewDesc').innerText = desc ? 'Scope: ' + desc : '';
 
     updateSlaEstimation();
 }
