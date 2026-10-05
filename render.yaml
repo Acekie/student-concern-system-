@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: resolved-student-concern-system
+    env: python
+    buildCommand: pip install -r requirements.txt && python database.py
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.9.13

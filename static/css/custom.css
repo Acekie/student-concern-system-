@@ -1,0 +1,103 @@
+/* Custom styles for ResolvEd Student Concern Routing & Resolution Tracking System */
+
+:root {
+    --primary-color: #1e40af;
+    --primary-hover: #1d4ed8;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    background-color: #f8fafc;
+}
+
+/* Status Badges */
+.status-submitted {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
+
+.status-routed {
+    background-color: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #c4b5fd;
+}
+
+.status-in_progress {
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.status-resolved {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.status-rejected {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.status-closed {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+/* Priority Badges */
+.priority-urgent {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.priority-high {
+    background-color: #f97316;
+    color: #ffffff;
+}
+
+.priority-medium {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.priority-low {
+    background-color: #94a3b8;
+    color: #ffffff;
+}
+
+/* Cards & Components */
+.card {
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.navbar-brand {
+    letter-spacing: -0.5px;
+}
+
+/* Timeline Components */
+.timeline-item:last-child {
+    border-left: 2px solid transparent !important;
+    padding-bottom: 0 !important;
+}
+
+.timeline-dot {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Print Styles */
+@media print {
+    nav, footer, .btn, .modal, .no-print {
+        display: none !important;
+    }
+    body {
+        background-color: #ffffff !important;
+    }
+    .card {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ResolvEd - Student Concern Routing & Resolution Tracking System{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
+                <i class="bi bi-shield-check fs-3 me-2 text-warning"></i>
+                <span>ResolvEd <span class="badge bg-white text-primary fs-7 ms-1">SCRRTS</span></span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarContent">
+                {% if session.get('user_id') %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'list_concerns' else '' }}" href="{{ url_for('list_concerns') }}">
+                            <i class="bi bi-card-checklist me-1"></i>
+                            {% if session.get('role') == 'student' %} My Concerns {% else %} Concerns Tracker {% endif %}
+                        </a>
+                    </li>
+                    {% if session.get('role') == 'student' %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'submit_concern' else '' }}" href="{{ url_for('submit_concern') }}">
+                            <i class="bi bi-plus-circle me-1"></i> Submit Concern
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if session.get('role') in ('staff', 'admin') %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">
+                            <i class="bi bi-graph-up-arrow me-1"></i> Reports & SLA
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active fw-semibold' if request.endpoint == 'departments_view' else '' }}" href="{{ url_for('departments_view') }}">
+                            <i class="bi bi-building me-1"></i> Departments & SLAs
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-white text-end d-none d-md-block">
+                        <div class="fw-bold">{{ session.get('full_name') }}</div>
+                        <small class="badge bg-light text-dark text-uppercase">{{ session.get('role') }}</small>
+                        {% if session.get('student_id_number') %}
+                        <small class="text-light ms-1">({{ session.get('student_id_number') }})</small>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-box-arrow-right me-1"></i> Logout
+                    </a>
+                </div>
+                {% else %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('login') }}">
+                            <i class="bi bi-lock me-1"></i> System Login
+                        </a>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Notifications -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'danger' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Page Content -->
+    <main class="container my-4 flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-top py-3 mt-auto">
+        <div class="container text-center text-muted small">
+            <div><strong>Student Concern Routing and Resolution Tracking System (ResolvEd)</strong></div>
+            <div>System Analysis & Design Hands-On Practical Examination &copy; 2026. Built with Python Flask & Relational SQLite/PostgreSQL.</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

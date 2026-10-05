@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% block title %}Concern {{ concern['ticket_number'] }} - ResolvEd{% endblock %}
+
+{% block content %}
+<!-- Back link & Header -->
+<div class="mb-3">
+    <a href="{{ url_for('list_concerns') }}" class="text-decoration-none text-muted small">
+        <i class="bi bi-arrow-left me-1"></i> Back to Concerns Tracker
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Concern Information & Resolution Actions -->
+    <div class="col-lg-8">
+        <!-- Main Concern Card -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <span class="badge bg-secondary text-uppercase mb-1">{{ concern['department_code'] }} &bull; {{ concern['category_name'] }}</span>
+                        <h3 class="fw-bold text-dark mb-1">{{ concern['subject'] }}</h3>
+                        <div class="text-muted small">
+                            Tracking Ticket: <strong class="text-primary">{{ concern['ticket_number'] }}</strong> &bull; Filed on {{ concern['created_at'] }}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge status-{{ concern['status'].lower() }} fs-6 py-2 px-3">{{ concern['status'] }}</span>
+                        <div class="mt-1">
+                            <span class="badge priority-{{ concern['priority'].lower() }}">{{ concern['priority'] }} PRIORITY</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overdue SLA Warning Banner -->
+                {% set is_od = check_is_overdue(concern['sla_target_date'], concern['status']) %}
+                {% if is_od %}
+                <div class="alert alert-danger d-flex align-items-center mb-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 me-3 text-danger"></i>
+                    <div>
+                        <strong>SLA VIOLATION ALERT: Target Deadline Exceeded!</strong>
+                        <div class="small">This concern was due for resolution by <strong>{{ concern['sla_target_date'] }}</strong>. Priority escalated.</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Detailed Description -->
+                <div class="mb-4">
+                    <h6 class="fw-bold text-dark text-uppercase small text-muted">Detailed Explanation</h6>
+                    <div class="p-3 bg-light rounded-3 text-dark fs-6" style="white-space: pre-wrap;">{{ concern['description'] }}</div>
+                </div>
+
+                <!-- Attachment (if present) -->
+                {% if concern['attachment_path'] %}
+                <div class="mb-4 p-3 border rounded-3 bg-white d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-paperclip fs-3 text-primary me-3"></i>
+                        <div>
+                            <div class="fw-bold text-dark">Supporting Attachment File</div>
+                            <small class="text-muted">{{ concern['attachment_path'] }}</small>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('static', filename='uploads/' + concern['attachment_path']) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-download me-1"></i> View / Download
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Resolution Card (if resolved or closed) -->
+                {% if concern['resolution_summary'] %}
+                <div class="card border-success border-2 bg-success-subtle mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-success mb-2 d-flex align-items-center">
+                            <i class="bi bi-check2-circle fs-5 me-2"></i> Official Department Resolution Summary
+                        </h6>
+                        <p class="mb-2 text-dark">{{ concern['resolution_summary'] }}</p>
+                        <small class="text-muted d-block">
+                            Resolved on: <strong>{{ concern['resolved_at'] }}</strong>
+                            {% if concern['staff_name'] %} by <strong>{{ concern['staff_name'] }}</strong>{% endif %}
+                        </small>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Rejection Card (if rejected) -->
+                {% if concern['rejection_reason'] %}
+                <div class="card border-danger border-2 bg-danger-subtle mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-danger mb-2 d-flex align-items-center">
+                            <i class="bi bi-x-circle fs-5 me-2"></i> Rejection Reason & Policy Basis
+                        </h6>
+                        <p class="mb-0 text-dark">{{ concern['rejection_reason'] }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Student Satisfaction Feedback Display -->
+                {% if feedback %}
+                <div class="card border-warning border-2 bg-warning-subtle mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark mb-1 d-flex align-items-center">
+                            <i class="bi bi-star-fill text-warning fs-5 me-2"></i> Student Satisfaction Evaluation
+                        </h6>
+                        <div class="text-warning fs-5 mb-2">
+                            {% for i in range(feedback['rating']) %}&#9733;{% endfor %}
+                            {% for i in range(5 - feedback['rating']) %}&#9734;{% endfor %}
+                            <span class="text-dark fs-6 ms-2">({{ feedback['rating'] }}/5 Stars)</span>
+                        </div>
+                        {% if feedback['feedback_comments'] %}
+                        <p class="mb-1 text-dark fst-italic">"{{ feedback['feedback_comments'] }}"</p>
+                        {% endif %}
+                        <small class="text-muted">Submitted on {{ feedback['submitted_at'] }}</small>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Controls Section (Role-based) -->
+                <div class="pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small">Current Handler:</span>
+                        {% if concern['staff_name'] %}
+                        <strong>{{ concern['staff_name'] }}</strong> ({{ concern['staff_email'] }})
+                        {% else %}
+                        <span class="badge bg-warning text-dark">Unassigned Queue</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <!-- Staff Claim Button -->
+                        {% if session.get('role') in ('staff', 'admin') and concern['status'] in ('SUBMITTED', 'ROUTED') %}
+                        <form method="POST" action="{{ url_for('claim_concern', concern_id=concern['concern_id']) }}" class="d-inline">
+                            <button type="submit" class="btn btn-warning btn-sm fw-bold">
+                                <i class="bi bi-hand-index-thumb me-1"></i> Claim & Assign to Me
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <!-- Staff / Admin Status Update Modal Trigger -->
+                        {% if session.get('role') in ('staff', 'admin') and concern['status'] not in ('CLOSED') %}
+                        <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#updateStatusModal">
+                            <i class="bi bi-arrow-repeat me-1"></i> Update Status / Resolve
+                        </button>
+                        {% endif %}
+
+                        <!-- Student Close Ticket Button -->
+                        {% if session.get('role') == 'student' and concern['status'] == 'RESOLVED' %}
+                        <form method="POST" action="{{ url_for('close_concern', concern_id=concern['concern_id']) }}" class="d-inline">
+                            <button type="submit" class="btn btn-success btn-sm fw-bold" onclick="return confirm('Confirm closing this concern?');">
+                                <i class="bi bi-check-circle me-1"></i> Confirm & Close Ticket
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <!-- Student Feedback Modal Trigger -->
+                        {% if session.get('role') == 'student' and concern['status'] in ('RESOLVED', 'CLOSED') and not feedback %}
+                        <button type="button" class="btn btn-warning btn-sm fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#feedbackModal">
+                            <i class="bi bi-star-fill me-1"></i> Rate Resolution
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Audit Trail / Transaction Timeline Card -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-clock-history me-2 text-primary"></i>Audit Trail & Transaction History
+                </h5>
+                <small class="text-muted">Immutable system audit record of all status changes, assignments, and resolution notes</small>
+            </div>
+            <div class="card-body p-4">
+                <div class="timeline">
+                    {% for log in audit_logs %}
+                    <div class="timeline-item border-start border-3 border-primary ps-4 pb-4 position-relative">
+                        <div class="timeline-dot position-absolute bg-primary rounded-circle" style="left: -7px; top: 0; width: 12px; height: 12px;"></div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-light text-primary border fw-bold">{{ log['action_type'] }}</span>
+                            <small class="text-muted">{{ log['created_at'] }}</small>
+                        </div>
+                        <div class="fw-semibold text-dark">{{ log['notes'] }}</div>
+                        <small class="text-secondary">
+                            Action by: <strong>{{ log['actor_name'] }}</strong> (<span class="text-uppercase">{{ log['actor_role'] }}</span>)
+                            {% if log['previous_status'] and log['new_status'] %}
+                            &bull; Status: <span class="badge bg-secondary-subtle text-dark">{{ log['previous_status'] }}</span> &rarr; <span class="badge bg-primary-subtle text-primary">{{ log['new_status'] }}</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Metadata & Student Profile -->
+    <div class="col-lg-4">
+        <!-- Student Information Card -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-person me-2 text-primary"></i>Student Profile</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="mb-2">
+                    <small class="text-muted d-block">Full Name</small>
+                    <strong class="text-dark">{{ concern['student_name'] }}</strong>
+                </div>
+                {% if concern['student_id_number'] %}
+                <div class="mb-2">
+                    <small class="text-muted d-block">Student ID Number</small>
+                    <span class="badge bg-light text-dark border">{{ concern['student_id_number'] }}</span>
+                </div>
+                {% endif %}
+                <div class="mb-2">
+                    <small class="text-muted d-block">Email</small>
+                    <a href="mailto:{{ concern['student_email'] }}" class="text-decoration-none">{{ concern['student_email'] }}</a>
+                </div>
+                {% if concern['student_contact'] %}
+                <div>
+                    <small class="text-muted d-block">Contact Phone</small>
+                    <span>{{ concern['student_contact'] }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Routing & SLA Details Card -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-gear-wide-connected me-2 text-primary"></i>Routing & SLA Policy</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="mb-3">
+                    <small class="text-muted d-block">Receiving Department</small>
+                    <strong class="text-primary">{{ concern['department_name'] }}</strong>
+                    <div class="small text-muted">{{ concern['dept_email'] }}</div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">Base SLA Standard</small>
+                    <span>{{ concern['sla_hours'] }} Hours</span>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">SLA Target Resolution Date</small>
+                    <span class="fw-bold {{ 'text-danger' if is_od else 'text-dark' }}">{{ concern['sla_target_date'] }}</span>
+                    {% if is_od %}
+                    <span class="badge bg-danger ms-1">OVERDUE</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <small class="text-muted d-block">Last Updated</small>
+                    <span class="text-muted small">{{ concern['updated_at'] }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- 1. Staff / Admin Status Update Modal -->
+{% if session.get('role') in ('staff', 'admin') %}
+<div class="modal fade" id="updateStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('update_status', concern_id=concern['concern_id']) }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat me-2"></i>Update Concern Status</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="new_status" class="form-label fw-bold">Select New Status</label>
+                        <select class="form-select" id="new_status" name="new_status" required onchange="handleStatusChange()">
+                            <option value="IN_PROGRESS" {% if concern['status'] == 'IN_PROGRESS' %}selected{% endif %}>IN PROGRESS</option>
+                            <option value="RESOLVED">RESOLVED (Complete Resolution)</option>
+                            <option value="REJECTED">REJECTED (Invalid / Policy Restriction)</option>
+                            <option value="ROUTED">ROUTED (Under Department Review)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="action_note" class="form-label fw-bold" id="actionNoteLabel">
+                            Resolution Summary / Notes <span class="text-danger" id="reqStar">*</span>
+                        </label>
+                        <textarea class="form-control" id="action_note" name="action_note" rows="4"
+                                  placeholder="Enter official resolution details, corrective steps taken, or rejection rationale..." required></textarea>
+                        <div class="form-text text-muted" id="actionNoteHelp">
+                            Business Rule 3: A detailed resolution note is strictly mandatory to mark a ticket as RESOLVED or REJECTED.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Apply Status Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 2. Student Satisfaction Feedback Modal -->
+{% if session.get('role') == 'student' %}
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('submit_feedback', concern_id=concern['concern_id']) }}">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-star-fill me-2"></i>Rate Resolution Service</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-center">
+                        <label class="form-label fw-bold d-block">Overall Satisfaction</label>
+                        <div class="btn-group" role="group">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="rating" id="star{{ i }}" value="{{ i }}" {% if i == 5 %}checked{% endif %}>
+                            <label class="btn btn-outline-warning text-dark fw-bold px-3" for="star{{ i }}">
+                                {{ i }} &#9733;
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comments" class="form-label fw-semibold">Feedback Comments</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="3" placeholder="Share your experience regarding the promptness and quality of resolution..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Later</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">Submit Evaluation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleStatusChange() {
+    const status = document.getElementById('new_status').value;
+    const label = document.getElementById('actionNoteLabel');
+    const noteArea = document.getElementById('action_note');
+    const reqStar = document.getElementById('reqStar');
+
+    if (status === 'RESOLVED') {
+        label.innerHTML = 'Resolution Summary <span class="text-danger">*</span>';
+        noteArea.placeholder = 'Describe the exact actions taken to resolve the student concern...';
+        noteArea.required = true;
+    } else if (status === 'REJECTED') {
+        label.innerHTML = 'Rejection Reason & Academic Policy Basis <span class="text-danger">*</span>';
+        noteArea.placeholder = 'Specify the official regulation or reason for rejecting this request...';
+        noteArea.required = true;
+    } else {
+        label.innerHTML = 'Action Notes <small class="text-muted">(Optional)</small>';
+        noteArea.placeholder = 'Optional progress remarks...';
+        noteArea.required = false;
+    }
+}
+</script>
+{% endblock %}

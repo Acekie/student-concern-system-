@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}Reports & SLA Analytics - ResolvEd{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold mb-0 text-dark">University SLA Analytics & Resolution Reporting Hub</h2>
+        <span class="text-muted">Comprehensive metrics on concern routing, departmental response times, and student satisfaction.</span>
+    </div>
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary shadow-sm">
+            <i class="bi bi-printer me-1"></i> Print Report
+        </button>
+        <a href="{{ url_for('export_csv') }}" class="btn btn-success shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Download CSV Masterfile
+        </a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-primary border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Total Concerns Filed</div>
+                <h3 class="fw-bold my-1 text-primary">{{ total }}</h3>
+                <small class="text-muted">Campus-wide cumulative inquiries</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-success border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Resolved / Completed</div>
+                <h3 class="fw-bold my-1 text-success">{{ resolved }}</h3>
+                <small class="text-success fw-bold"><i class="bi bi-check2-all"></i> {{ resolution_rate }}% Resolution Rate</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-danger border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">SLA Overdue Inactive</div>
+                <h3 class="fw-bold my-1 text-danger">{{ overdue }}</h3>
+                <small class="text-danger">Exceeded maximum turnaround</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-warning border-4">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold text-uppercase">Student Satisfaction</div>
+                <h3 class="fw-bold my-1 text-warning">{{ avg_rating }} <small class="fs-6 text-muted">/ 5.0</small></h3>
+                <small class="text-muted">Post-resolution student rating</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Visual Analytics: Charts -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Concerns by Lifecycle Status</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-4">
+                <div style="max-height: 280px; width: 100%;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Volume by Priority Classification</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-4">
+                <div style="max-height: 280px; width: 100%;">
+                    <canvas id="priorityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Department Performance Summary -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-building me-2 text-primary"></i>Departmental Performance & SLA Scorecard</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Department Name</th>
+                        <th>Code</th>
+                        <th class="text-center">Total Received</th>
+                        <th class="text-center">In Progress</th>
+                        <th class="text-center">Resolved</th>
+                        <th class="text-center">Overdue</th>
+                        <th class="text-center">Avg Rating</th>
+                        <th class="text-center">Compliance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in dept_performance %}
+                    {% set comp_rate = 100 if d['total_received'] == 0 else (((d['total_received'] - d['overdue_count']) / d['total_received'] * 100)|round(1)) %}
+                    <tr>
+                        <td class="ps-3 fw-bold text-dark">{{ d['department_name'] }}</td>
+                        <td><span class="badge bg-secondary">{{ d['department_code'] }}</span></td>
+                        <td class="text-center fw-bold">{{ d['total_received'] }}</td>
+                        <td class="text-center text-warning fw-bold">{{ d['in_progress'] }}</td>
+                        <td class="text-center text-success fw-bold">{{ d['total_resolved'] }}</td>
+                        <td class="text-center">
+                            {% if d['overdue_count'] > 0 %}
+                            <span class="badge bg-danger">{{ d['overdue_count'] }}</span>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if d['avg_rating'] %}
+                            <span class="badge bg-warning-subtle text-dark fw-bold">
+                                {{ d['avg_rating']|round(1) }} &#9733;
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">No ratings</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold {{ 'text-success' if comp_rate >= 80 else 'text-danger' }}">
+                                {{ comp_rate }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart 1: Status Distribution
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+const statusLabels = [{% for s in status_counts %}"{{ s['status'] }}",{% endfor %}];
+const statusData = [{% for s in status_counts %}{{ s['count'] }},{% endfor %}];
+
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: statusLabels,
+        datasets: [{
+            data: statusData,
+            backgroundColor: [
+                '#3b82f6', // SUBMITTED: Blue
+                '#6366f1', // ROUTED: Indigo
+                '#f59e0b', // IN_PROGRESS: Amber
+                '#10b981', // RESOLVED: Emerald
+                '#ef4444', // REJECTED: Red
+                '#64748b'  // CLOSED: Slate
+            ],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+// Chart 2: Priority Distribution
+const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+const priorityLabels = [{% for p in priority_counts %}"{{ p['priority'] }}",{% endfor %}];
+const priorityData = [{% for p in priority_counts %}{{ p['count'] }},{% endfor %}];
+
+new Chart(priorityCtx, {
+    type: 'bar',
+    data: {
+        labels: priorityLabels,
+        datasets: [{
+            label: 'Concerns',
+            data: priorityData,
+            backgroundColor: [
+                '#ef4444', // URGENT
+                '#f97316', // HIGH
+                '#3b82f6', // MEDIUM
+                '#94a3b8'  // LOW
+            ],
+            borderRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+    }
+});
+</script>
+{% endblock %}
