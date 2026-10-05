@@ -18,6 +18,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from database import get_db_connection, init_db, DB_PATH
+from mailer import send_registration_email, send_concern_status_email
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "card-mri-cmdi-secure-production-key-2026")
@@ -204,9 +205,31 @@ def register():
             return render_template('register.html', departments=departments)
 
         conn.commit()
+
+        # Retrieve department name for staff email if applicable
+        dept_name = None
+        if account_role == 'staff' and department_id:
+            dept_row = conn.execute("SELECT department_name FROM departments WHERE department_id = ?", (department_id,)).fetchone()
+            if dept_row:
+                dept_name = dept_row['department_name']
+
         conn.close()
 
-        flash("CARD MRI Institutional Account successfully registered! Please sign in with your credentials.", "success")
+        # Dispatch automated asynchronous email notification
+        try:
+            send_registration_email(
+                to_email=email,
+                full_name=full_name,
+                role=account_role,
+                student_id=student_id if account_role == 'student' else None,
+                course_program=course_program if account_role == 'student' else None,
+                department_name=dept_name,
+                campus_branch=campus_branch
+            )
+        except Exception as mail_err:
+            print(f"[MAILER EXCEPTION] {mail_err}")
+
+        flash("CARD MRI Institutional Account successfully registered! An email confirmation has been dispatched. Please sign in with your credentials.", "success")
         return redirect(url_for('login'))
 
     conn.close()
@@ -650,10 +673,32 @@ def update_status(concern_id):
             WHERE concern_id = ?
         """, (new_status, internal_notes or concern['internal_staff_notes'], now_str, concern_id))
 
-        log_audit_event(cursor, concern_id, session['user_id'], prev_status, new_status, 'Status Update', action_note or f"Status shifted to {new_status}")
+    # Fetch student and department info for email dispatch
+    student_info = cursor.execute("""
+        SELECT u.email as student_email, u.full_name as student_name, c.ticket_number, c.subject, d.department_name
+        FROM concerns c
+        JOIN users u ON c.student_id = u.user_id
+        JOIN departments d ON c.department_id = d.department_id
+        WHERE c.concern_id = ?
+    """, (concern_id,)).fetchone()
 
     conn.commit()
     conn.close()
+
+    if student_info:
+        try:
+            send_concern_status_email(
+                to_email=student_info['student_email'],
+                student_name=student_info['student_name'],
+                ticket_number=student_info['ticket_number'],
+                subject_text=student_info['subject'],
+                new_status=new_status,
+                department_name=student_info['department_name'],
+                action_notes=action_note
+            )
+        except Exception as mail_err:
+            print(f"[MAILER EXCEPTION] {mail_err}")
+
     flash(f"Inquiry status successfully transitioned to {new_status}.", "success")
     return redirect(url_for('view_concern', concern_id=concern_id))
 
