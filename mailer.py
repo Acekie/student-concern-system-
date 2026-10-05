@@ -24,15 +24,25 @@ def _send_email_async(to_email, subject, html_content, text_content=None):
     if not to_email:
         return
 
-    if not SMTP_USER or not SMTP_PASS:
+    # Dynamically fetch runtime environment variables
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").replace(" ", "").strip()
+    smtp_from_name = os.environ.get("SMTP_FROM_NAME", "CARD MRI SCRRTS Portal").strip()
+
+    if not smtp_user or not smtp_pass:
         print(f"[MAILER SIMULATION] Dispatched email to: {to_email} | Subject: {subject}")
-        print("[MAILER SIMULATION] Configure SMTP_USER and SMTP_PASS environment variables on Render to send live inbox emails.")
+        print("[MAILER SIMULATION] SMTP_USER or SMTP_PASS is missing in Render Environment.")
         return
+
+    # For Gmail SMTP, sender email MUST match the authenticated user address to avoid spam rejection
+    sender_email = smtp_user
 
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+        msg['From'] = f"{smtp_from_name} <{sender_email}>"
         msg['To'] = to_email
 
         if text_content:
@@ -40,10 +50,16 @@ def _send_email_async(to_email, subject, html_content, text_content=None):
         if html_content:
             msg.attach(MIMEText(html_content, 'html'))
 
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=12)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15)
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(sender_email, [to_email], msg.as_string())
         server.quit()
         print(f"[MAILER SUCCESS] Live email successfully dispatched to {to_email} [{subject}]")
     except Exception as e:
