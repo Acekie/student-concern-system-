@@ -194,8 +194,8 @@ def init_db(force_reseed=False):
         (None, "Engr. Jonathan D. Reyes (ICT Admin)", "staff.ict@cmdi.edu.ph", generate_password_hash("IctSupport@Card2026"), "staff", None, "Bay, Laguna (Main Campus)", 5, "+63 918 600 7788"),
 
         # Sample Registered Students
-        ("CMDI-2023-01042", "Clarisse Marie S. Bautista", "cbautista@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS Information Technology (BSIT)", "Bay, Laguna (Main Campus)", None, "+63 920 111 2233"),
-        ("CMDI-2024-00891", "Jerome K. Delos Santos", "jdelossantos@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS Entrepreneurship (BSEntrep)", "Tagum City Campus", None, "+63 920 222 3344")
+        ("CMDI-2023-01042", "Clarisse Marie S. Bautista", "cbautista@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS in Information Systems (BSIS)", "Bay, Laguna (Main Campus)", None, "+63 920 111 2233"),
+        ("CMDI-2024-00891", "Jerome K. Delos Santos", "jdelossantos@student.cmdi.edu.ph", generate_password_hash("Student@Card2026"), "student", "BS in Entrepreneurship (BS Entrep) - Specializing in Microfinance", "Tagum City Campus", None, "+63 920 222 3344")
     ]
     cursor.executemany("""
         INSERT INTO users (
