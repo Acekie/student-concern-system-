@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}Reports & SLA Analytics - ResolvEd{% endblock %}
+{% block title %}Reports & SLA Analytics - CARD MRI SCRRTS{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom">
     <div>
-        <h2 class="h3 fw-bold mb-0 text-dark">University SLA Analytics & Resolution Reporting Hub</h2>
-        <span class="text-muted">Comprehensive metrics on concern routing, departmental response times, and student satisfaction.</span>
+        <h2 class="h4 fw-bold mb-0 text-card-navy">Institutional SLA Analytics & Resolution Reporting Hub</h2>
+        <span class="text-muted small">Comprehensive metrics on concern routing, departmental response times, and student satisfaction.</span>
     </div>
     <div class="mt-2 mt-md-0 d-flex gap-2">
-        <button onclick="window.print()" class="btn btn-outline-secondary shadow-sm">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm shadow-sm">
             <i class="bi bi-printer me-1"></i> Print Report
         </button>
-        <a href="{{ url_for('export_csv') }}" class="btn btn-success shadow-sm">
+        <a href="{{ url_for('export_csv') }}" class="btn btn-card-green btn-sm shadow-sm">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i> Download CSV Masterfile
         </a>
     </div>
@@ -23,7 +23,7 @@
         <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-primary border-4">
             <div class="card-body">
                 <div class="text-muted small fw-semibold text-uppercase">Total Concerns Filed</div>
-                <h3 class="fw-bold my-1 text-primary">{{ total }}</h3>
+                <h3 class="fw-bold my-1 text-card-navy">{{ total }}</h3>
                 <small class="text-muted">Campus-wide cumulative inquiries</small>
             </div>
         </div>
@@ -40,9 +40,9 @@
     <div class="col-sm-6 col-lg-3">
         <div class="card border-0 shadow-sm rounded-3 bg-white h-100 border-start border-danger border-4">
             <div class="card-body">
-                <div class="text-muted small fw-semibold text-uppercase">SLA Overdue Inactive</div>
-                <h3 class="fw-bold my-1 text-danger">{{ overdue }}</h3>
-                <small class="text-danger">Exceeded maximum turnaround</small>
+                <div class="text-muted small fw-semibold text-uppercase">Escalated Inquiries</div>
+                <h3 class="fw-bold my-1 text-danger">{{ escalated }}</h3>
+                <small class="text-danger">Supervisory intervention required</small>
             </div>
         </div>
     </div>
@@ -51,7 +51,7 @@
             <div class="card-body">
                 <div class="text-muted small fw-semibold text-uppercase">Student Satisfaction</div>
                 <h3 class="fw-bold my-1 text-warning">{{ avg_rating }} <small class="fs-6 text-muted">/ 5.0</small></h3>
-                <small class="text-muted">Post-resolution student rating</small>
+                <small class="text-muted">Post-resolution student evaluation</small>
             </div>
         </div>
     </div>
@@ -60,9 +60,9 @@
 <!-- Visual Analytics: Charts -->
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
             <div class="card-header bg-white py-3">
-                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Concerns by Lifecycle Status</h5>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart-fill me-2 text-card-navy"></i>Concerns by Lifecycle Status</h5>
             </div>
             <div class="card-body d-flex align-items-center justify-content-center p-4">
                 <div style="max-height: 280px; width: 100%;">
@@ -73,9 +73,9 @@
     </div>
 
     <div class="col-lg-6">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
             <div class="card-header bg-white py-3">
-                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Volume by Priority Classification</h5>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-bar-chart-fill me-2 text-card-green"></i>Volume by Priority Classification</h5>
             </div>
             <div class="card-body d-flex align-items-center justify-content-center p-4">
                 <div style="max-height: 280px; width: 100%;">
@@ -87,9 +87,9 @@
 </div>
 
 <!-- Department Performance Summary -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
+<div class="card border-0 shadow-sm rounded-3 mb-4">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-building me-2 text-primary"></i>Departmental Performance & SLA Scorecard</h5>
+        <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-building me-2 text-card-navy"></i>Departmental Performance & Resolution Scorecard</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -101,23 +101,23 @@
                         <th class="text-center">Total Received</th>
                         <th class="text-center">In Progress</th>
                         <th class="text-center">Resolved</th>
-                        <th class="text-center">Overdue</th>
+                        <th class="text-center">Escalated</th>
                         <th class="text-center">Avg Rating</th>
-                        <th class="text-center">Compliance</th>
+                        <th class="text-center">Resolution %</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for d in dept_performance %}
-                    {% set comp_rate = 100 if d['total_received'] == 0 else (((d['total_received'] - d['overdue_count']) / d['total_received'] * 100)|round(1)) %}
+                    {% set res_pct = 100 if d['total_received'] == 0 else ((d['total_resolved'] / d['total_received'] * 100)|round(1)) %}
                     <tr>
                         <td class="ps-3 fw-bold text-dark">{{ d['department_name'] }}</td>
-                        <td><span class="badge bg-secondary">{{ d['department_code'] }}</span></td>
+                        <td><span class="badge bg-light text-dark border">{{ d['department_code'] }}</span></td>
                         <td class="text-center fw-bold">{{ d['total_received'] }}</td>
                         <td class="text-center text-warning fw-bold">{{ d['in_progress'] }}</td>
                         <td class="text-center text-success fw-bold">{{ d['total_resolved'] }}</td>
                         <td class="text-center">
-                            {% if d['overdue_count'] > 0 %}
-                            <span class="badge bg-danger">{{ d['overdue_count'] }}</span>
+                            {% if d['escalated_count'] > 0 %}
+                            <span class="badge bg-danger">{{ d['escalated_count'] }}</span>
                             {% else %}
                             <span class="badge bg-success-subtle text-success">0</span>
                             {% endif %}
@@ -132,8 +132,8 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <span class="fw-bold {{ 'text-success' if comp_rate >= 80 else 'text-danger' }}">
-                                {{ comp_rate }}%
+                            <span class="fw-bold {{ 'text-success' if res_pct >= 80 else 'text-danger' }}">
+                                {{ res_pct }}%
                             </span>
                         </td>
                     </tr>

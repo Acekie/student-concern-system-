@@ -840,7 +840,6 @@ def list_users():
     total_students = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
     total_staff = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'staff'").fetchone()[0]
     total_admins = cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0]
-
     conn.close()
     return render_template(
         'users.html',
@@ -851,6 +850,57 @@ def list_users():
         total_admins=total_admins,
         role_filter=role_filter,
         search_query=search_query
+    )
+
+@app.route('/reports')
+@login_required
+@role_required('admin')
+def reports():
+    """Module: Reports & SLA Analytics Hub."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    total = cursor.execute("SELECT COUNT(*) FROM concerns").fetchone()[0]
+    resolved = cursor.execute("SELECT COUNT(*) FROM concerns WHERE status IN ('Resolved', 'Closed')").fetchone()[0]
+    escalated = cursor.execute("SELECT COUNT(*) FROM concerns WHERE status = 'Escalated'").fetchone()[0]
+    resolution_rate = round((resolved / total * 100), 1) if total > 0 else 100.0
+
+    avg_rating_row = cursor.execute("SELECT AVG(rating) FROM concern_feedback").fetchone()
+    avg_rating = round(avg_rating_row[0], 2) if avg_rating_row and avg_rating_row[0] else 0.0
+
+    dept_performance = cursor.execute("""
+        SELECT d.department_name, d.department_code,
+               COUNT(c.concern_id) as total_received,
+               SUM(CASE WHEN c.status IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) as total_resolved,
+               SUM(CASE WHEN c.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress,
+               SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) as escalated_count,
+               AVG(f.rating) as avg_rating
+        FROM departments d
+        LEFT JOIN concerns c ON d.department_id = c.department_id
+        LEFT JOIN concern_feedback f ON c.concern_id = f.concern_id
+        GROUP BY d.department_id
+    """).fetchall()
+
+    status_counts = cursor.execute("""
+        SELECT status, COUNT(*) as count FROM concerns GROUP BY status
+    """).fetchall()
+
+    priority_counts = cursor.execute("""
+        SELECT priority, COUNT(*) as count FROM concerns GROUP BY priority
+    """).fetchall()
+
+    conn.close()
+    return render_template(
+        'reports.html',
+        total=total,
+        resolved=resolved,
+        escalated=escalated,
+        resolution_rate=resolution_rate,
+        avg_rating=avg_rating,
+        dept_performance=dept_performance,
+        status_counts=status_counts,
+        priority_counts=priority_counts
     )
 
 if __name__ == '__main__':
